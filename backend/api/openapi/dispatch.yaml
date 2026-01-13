@@ -1,0 +1,47 @@
+openapi: 3.0.0
+info:
+  title: Dispatch API
+  version: 1.0.0
+  description: 调度与配送服务 API
+
+paths:
+  /dispatch/demands:
+    get:
+      summary: 获取需求列表
+      tags:
+        - Dispatch
+      responses:
+        '200':
+          description: 成功返回需求列表
+    post:
+      summary: 创建需求
+      tags:
+        - Dispatch
+      responses:
+        '201':
+          description: 创建成功
+
+  /dispatch/demands/{id}:
+    get:
+      summary: 获取需求详情
+      tags:
+        - Dispatch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功返回需求详情
+
+  /dispatch/orders:
+    get:
+      summary: 获取调度订单列表
+      tags:
+        - Dispatch
+      responses:
+        '200':
+          description: 成功返回订单列表
+

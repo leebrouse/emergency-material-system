@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package dispatch;
+
+option go_package = "github.com/emergency-material-system/api/proto/dispatch";
+
+// 调度服务
+service DispatchService {
+  // 获取需求列表
+  rpc ListDemands(ListDemandsRequest) returns (ListDemandsResponse);
+  
+  // 获取需求详情
+  rpc GetDemand(GetDemandRequest) returns (GetDemandResponse);
+  
+  // 创建需求
+  rpc CreateDemand(CreateDemandRequest) returns (CreateDemandResponse);
+  
+  // 更新需求状态
+  rpc UpdateDemandStatus(UpdateDemandStatusRequest) returns (UpdateDemandStatusResponse);
+  
+  // 创建调度订单
+  rpc CreateDispatchOrder(CreateDispatchOrderRequest) returns (CreateDispatchOrderResponse);
+  
+  // 获取调度订单列表
+  rpc ListDispatchOrders(ListDispatchOrdersRequest) returns (ListDispatchOrdersResponse);
+}
+
+message ListDemandsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string status = 3;
+}
+
+message ListDemandsResponse {
+  repeated Demand demands = 1;
+  int32 total = 2;
+}
+
+message GetDemandRequest {
+  int64 id = 1;
+}
+
+message GetDemandResponse {
+  Demand demand = 1;
+}
+
+message CreateDemandRequest {
+  string location = 1;
+  string priority = 2;
+  string description = 3;
+  repeated DemandItem items = 4;
+}
+
+message CreateDemandResponse {
+  Demand demand = 1;
+}
+
+message UpdateDemandStatusRequest {
+  int64 id = 1;
+  string status = 2;
+}
+
+message UpdateDemandStatusResponse {
+  Demand demand = 1;
+}
+
+message CreateDispatchOrderRequest {
+  int64 demand_id = 1;
+  int64 warehouse_id = 2;
+  string vehicle_info = 3;
+}
+
+message CreateDispatchOrderResponse {
+  DispatchOrder order = 1;
+}
+
+message ListDispatchOrdersRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string status = 3;
+}
+
+message ListDispatchOrdersResponse {
+  repeated DispatchOrder orders = 1;
+  int32 total = 2;
+}
+
+message Demand {
+  int64 id = 1;
+  string location = 2;
+  string priority = 3;
+  string status = 4;
+  string description = 5;
+  repeated DemandItem items = 6;
+  int64 created_at = 7;
+  int64 updated_at = 8;
+}
+
+message DemandItem {
+  int64 material_id = 1;
+  int64 quantity = 2;
+  string unit = 3;
+}
+
+message DispatchOrder {
+  int64 id = 1;
+  int64 demand_id = 2;
+  int64 warehouse_id = 3;
+  string vehicle_info = 4;
+  string status = 5;
+  int64 created_at = 6;
+  int64 updated_at = 7;
+}
+

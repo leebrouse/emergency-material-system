@@ -1,0 +1,47 @@
+openapi: 3.0.0
+info:
+  title: Stock API
+  version: 1.0.0
+  description: 物资与库存服务 API
+
+paths:
+  /stock/materials:
+    get:
+      summary: 获取物资列表
+      tags:
+        - Stock
+      responses:
+        '200':
+          description: 成功返回物资列表
+    post:
+      summary: 创建物资
+      tags:
+        - Stock
+      responses:
+        '201':
+          description: 创建成功
+
+  /stock/materials/{id}:
+    get:
+      summary: 获取物资详情
+      tags:
+        - Stock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功返回物资详情
+
+  /stock/inventory:
+    get:
+      summary: 获取库存信息
+      tags:
+        - Stock
+      responses:
+        '200':
+          description: 成功返回库存信息
+
