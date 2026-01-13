@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package auth;
 
-option go_package = "github.com/emergency-material-system/api/proto/auth";
+option go_package = "github.com/emergency-material-system/backend/internal/common/genproto/auth";
 
 // 认证服务
 service AuthService {

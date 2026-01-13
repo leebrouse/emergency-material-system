@@ -4,59 +4,61 @@ set -euo pipefail
 
 shopt -s globstar
 
-if ! [[ "$0" =~ scripts/genproto.sh ]]; then
+if ! [[ "$0" =~ script/genopenapi.sh ]]; then
   echo "must be run from repository root"
   exit 255
 fi
 
-source ./scripts/lib.sh
+source ./backend/script/lib.sh
 
-API_ROOT="./api"
+API_ROOT="./backend/api"
+OPENAPI_OUT="./backend/internal/common/genopenapi"
 
-function dirs {
-  dirs=()
-  while IFS= read -r dir; do
-    dirs+=("$dir")
-  done < <(find . -type f -name "*.proto" -exec dirname {} \; | xargs -n1 basename | sort -u)
-  echo "${dirs[@]}"
+function openapi_files {
+  openapi_files=$(find ./backend/api/openapi -type f -name '*.yaml')
+  echo "${openapi_files[@]}"
 }
 
-function pb_files {
-  pb_files=$(find . -type f -name '*.proto')
-  echo "${pb_files[@]}"
-}
-
-function gen_for_modules() {
-  local go_out="internal/common/genproto"
-  if [ -d "$go_out" ]; then
-    log_warning "found existing $go_out, cleaning all files under it"
-    run rm -rf $go_out
+function gen_for_openapi() {
+  if [ -d "$OPENAPI_OUT" ]; then
+    log_warning "found existing $OPENAPI_OUT, cleaning all files under it"
+    run rm -rf $OPENAPI_OUT
   fi
 
-  for dir in $(dirs); do
-    echo "dir=$dir"
-    local service="${dir:0:${#dir}-2}"
-    local pb_file="${service}.proto"
+  run mkdir -p "$OPENAPI_OUT"
 
-    if [ -d "$go_out/$dir" ]; then
-        log_warning "found existing $go_out/$dir, cleaning all files under it"
-        run rm -rf "$go_out"/$dir/*
-    else
-      run mkdir -p "$go_out/$dir"
-    fi
-    log_info "generating code for $service to $go_out/$dir"
+  for openapi_file in $(openapi_files); do
+    local service_name=$(basename "$openapi_file" .yaml)
+    local out_dir="$OPENAPI_OUT/$service_name"
 
-    run protoc \
-      -I="/usr/local/include/" \
-      -I="${API_ROOT}" \
-      "--go_out=${go_out}" --go_opt=paths=source_relative \
-      --go-grpc_opt=require_unimplemented_servers=false \
-      "--go-grpc_out=${go_out}" --go-grpc_opt=paths=source_relative \
-      "${API_ROOT}/${dir}/$pb_file"
+    run mkdir -p "$out_dir"
+
+    log_info "generating REST API code for $service_name to $out_dir"
+
+    # Generate types
+    run oapi-codegen \
+      -package "$service_name" \
+      -generate types \
+      -o "$out_dir/types.gen.go" \
+      "$openapi_file"
+
+    # Generate client (optional)
+    run oapi-codegen \
+      -package "$service_name" \
+      -generate client \
+      -o "$out_dir/client.gen.go" \
+      "$openapi_file"
+
+    # Generate server interface
+    run oapi-codegen \
+      -package "$service_name" \
+      -generate server \
+      -o "$out_dir/server.gen.go" \
+      "$openapi_file"
+
   done
-  log_success "protoc gen done!"
+  log_success "OpenAPI code generation done!"
 }
 
-echo "directories containing protos to be built: $(dirs)"
-echo "found pb_files: $(pb_files)"
-gen_for_modules
+echo "found openapi_files: $(openapi_files)"
+gen_for_openapi

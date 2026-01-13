@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package stock;
 
-option go_package = "github.com/emergency-material-system/api/proto/stock";
+option go_package = "github.com/emergency-material-system/backend/internal/common/genproto/stock";
 
 // 物资库存服务
 service StockService {

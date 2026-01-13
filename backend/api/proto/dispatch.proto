@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package dispatch;
 
-option go_package = "github.com/emergency-material-system/api/proto/dispatch";
+option go_package = "github.com/emergency-material-system/backend/internal/common/genproto/dispatch";
 
 // 调度服务
 service DispatchService {

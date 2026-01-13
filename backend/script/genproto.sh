@@ -4,20 +4,20 @@ set -euo pipefail
 
 shopt -s globstar
 
-if ! [[ "$0" =~ scripts/genproto.sh ]]; then
+if ! [[ "$0" =~ script/genproto.sh ]]; then
   echo "must be run from repository root"
   exit 255
 fi
 
-source ./scripts/lib.sh
+source ./backend/script/lib.sh
 
-API_ROOT="./api"
+API_ROOT="./backend/api"
 
 function dirs {
   dirs=()
   while IFS= read -r dir; do
     dirs+=("$dir")
-  done < <(find . -type f -name "*.proto" -exec dirname {} \; | xargs -n1 basename | sort -u)
+  done < <(find ./backend/api/proto -type f -name "*.proto" -exec dirname {} \; | sort -u)
   echo "${dirs[@]}"
 }
 
@@ -27,32 +27,34 @@ function pb_files {
 }
 
 function gen_for_modules() {
-  local go_out="internal/common/genproto"
+  local go_out="./backend/internal/common/genproto"
   if [ -d "$go_out" ]; then
     log_warning "found existing $go_out, cleaning all files under it"
     run rm -rf $go_out
   fi
 
-  for dir in $(dirs); do
-    echo "dir=$dir"
-    local service="${dir:0:${#dir}-2}"
-    local pb_file="${service}.proto"
+  run mkdir -p "$go_out"
 
-    if [ -d "$go_out/$dir" ]; then
-        log_warning "found existing $go_out/$dir, cleaning all files under it"
-        run rm -rf "$go_out"/$dir/*
+  for pb_file in $(pb_files); do
+    local service_name=$(basename "$pb_file" .proto)
+    local dir_name="${service_name}"
+    local out_dir="$go_out/$dir_name"
+
+    if [ -d "$out_dir" ]; then
+        log_warning "found existing $out_dir, cleaning all files under it"
+        run rm -rf "$out_dir"/*
     else
-      run mkdir -p "$go_out/$dir"
+      run mkdir -p "$out_dir"
     fi
-    log_info "generating code for $service to $go_out/$dir"
+    log_info "generating code for $service_name to $out_dir"
 
     run protoc \
       -I="/usr/local/include/" \
       -I="${API_ROOT}" \
-      "--go_out=${go_out}" --go_opt=paths=source_relative \
+      "--go_out=${go_out}" --go_opt=module=github.com/emergency-material-system/backend/internal/common/genproto \
       --go-grpc_opt=require_unimplemented_servers=false \
-      "--go-grpc_out=${go_out}" --go-grpc_opt=paths=source_relative \
-      "${API_ROOT}/${dir}/$pb_file"
+      "--go-grpc_out=${go_out}" --go-grpc_opt=module=github.com/emergency-material-system/backend/internal/common/genproto \
+      "$pb_file"
   done
   log_success "protoc gen done!"
 }

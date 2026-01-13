@@ -1,0 +1,22 @@
+services:
+  auth:
+    rest: "8081"
+    grpc: "9091"
+    
+  stock:
+    rest: "8082"
+    grpc: "9092"
+
+  dispatch:
+    rest: "8083"
+    grpc: "9093"
+
+  statistics:
+    rest: "8084"
+    # statistics service only has REST API
+    grpc: ""  
+
+  logistics:
+    rest: "8085"
+    # logistics service only has REST API
+    grpc: ""  

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package logistics;
 
-option go_package = "github.com/emergency-material-system/api/proto/logistics";
+option go_package = "github.com/emergency-material-system/backend/internal/common/genproto/logistics";
 
 // 物流追踪服务
 service LogisticsService {

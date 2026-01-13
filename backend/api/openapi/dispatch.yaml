@@ -4,44 +4,313 @@ info:
   version: 1.0.0
   description: 调度与配送服务 API
 
+servers:
+  - url: http://localhost:8083/api/v1
+    description: Development server
+
 paths:
-  /dispatch/demands:
+  /dispatch/requests:
     get:
-      summary: 获取需求列表
+      summary: 获取需求申报列表
+      description: 分页获取所有需求申报记录
       tags:
         - Dispatch
+      parameters:
+        - name: page
+          in: query
+          description: 页码，从1开始
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: 每页记录数
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
       responses:
         '200':
-          description: 成功返回需求列表
+          description: 成功返回需求申报列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Request'
+                  total:
+                    type: integer
+                    description: 总记录数
+                  page:
+                    type: integer
+                    description: 当前页码
+                  page_size:
+                    type: integer
+                    description: 每页记录数
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
     post:
-      summary: 创建需求
+      summary: 创建需求申报
+      description: 创建新的物资需求申报
       tags:
         - Dispatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostDispatchRequestsJSONBody'
       responses:
         '201':
           description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-  /dispatch/demands/{id}:
+  /dispatch/requests/{id}:
     get:
-      summary: 获取需求详情
+      summary: 获取需求申报详情
+      description: 根据ID获取单个需求申报的详细信息
       tags:
         - Dispatch
       parameters:
         - name: id
           in: path
           required: true
+          description: 需求申报ID
           schema:
             type: integer
+            minimum: 1
       responses:
         '200':
-          description: 成功返回需求详情
+          description: 成功返回需求申报详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 需求申报不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-  /dispatch/orders:
-    get:
-      summary: 获取调度订单列表
+    put:
+      summary: 更新需求申报状态
+      description: 更新指定需求申报的状态
       tags:
         - Dispatch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 需求申报ID
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PutDispatchRequestsIdStatusJSONBody'
       responses:
         '200':
-          description: 成功返回订单列表
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Request status updated successfully"
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 需求申报不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Request:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 需求申报ID
+          example: 1
+        requester_id:
+          type: integer
+          description: 申报人ID
+          nullable: true
+          example: 1
+        material_id:
+          type: integer
+          description: 物资ID
+          nullable: true
+          example: 1
+        quantity:
+          type: integer
+          description: 需求数量
+          nullable: true
+          example: 100
+        urgency_level:
+          type: string
+          description: 紧急程度
+          nullable: true
+          enum: [low, medium, high, urgent]
+          example: "high"
+        description:
+          type: string
+          description: 需求描述
+          nullable: true
+          example: "急需口罩"
+        status:
+          type: string
+          description: 申报状态
+          enum: [pending, approved, rejected, completed]
+          example: "pending"
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+
+    CreateRequestRequest:
+      type: object
+      required:
+        - requester_id
+        - material_id
+        - quantity
+      properties:
+        requester_id:
+          type: integer
+          description: 申报人ID
+          example: 1
+        material_id:
+          type: integer
+          description: 物资ID
+          example: 1
+        quantity:
+          type: integer
+          description: 需求数量
+          minimum: 1
+          example: 100
+        urgency_level:
+          type: string
+          description: 紧急程度
+          enum: [low, medium, high, urgent]
+          example: "high"
+        description:
+          type: string
+          description: 需求描述
+          example: "急需口罩"
+
+    UpdateStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: 新状态
+          enum: [pending, approved, rejected, completed]
+          example: "approved"
+
+    PostDispatchRequestsJSONBody:
+      type: object
+      required:
+        - requester_id
+        - material_id
+        - quantity
+      properties:
+        requester_id:
+          type: integer
+          description: 申报人ID
+          example: 1
+        material_id:
+          type: integer
+          description: 物资ID
+          example: 1
+        quantity:
+          type: integer
+          description: 需求数量
+          minimum: 1
+          example: 100
+        urgency_level:
+          type: string
+          description: 紧急程度
+          enum: [low, medium, high, urgent]
+          example: "high"
+        description:
+          type: string
+          description: 需求描述
+          example: "急需口罩"
+
+    PutDispatchRequestsIdStatusJSONBody:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: 新状态
+          enum: [pending, approved, rejected, completed]
+          example: "approved"
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: 错误信息
+          example: "Invalid request body"
 
