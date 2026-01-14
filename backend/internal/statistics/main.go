@@ -6,11 +6,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	
+
+	_ "github.com/emergency-material-system/backend/internal/common/config"
+	"github.com/emergency-material-system/backend/internal/common/genopenapi/statistics"
 	"github.com/emergency-material-system/backend/internal/statistics/handler"
 	"github.com/emergency-material-system/backend/internal/statistics/service"
-	_"github.com/emergency-material-system/backend/internal/common/config"
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 )
 
 func main() {
@@ -51,16 +53,12 @@ func startRESTServer(handler *handler.StatisticsHandler) {
 	// API路由组
 	api := r.Group("/api/v1")
 	{
-		stats := api.Group("/statistics")
-		{
-			stats.GET("/overview", handler.GetOverview)
-			stats.GET("/materials", handler.GetMaterialStats)
-			stats.GET("/requests", handler.GetRequestStats)
-		}
+		// 使用生成的 RegisterHandlers 自动注册所有路由
+		statistics.RegisterHandlers(api, handler)
 	}
 
-	fmt.Println("REST API server starting on port 8084")
-	if err := r.Run(":8084"); err != nil {
+	fmt.Println("REST API server starting on port ", viper.GetString("services.statistics.rest"))
+	if err := r.Run(":" + viper.GetString("services.statistics.rest")); err != nil {
 		fmt.Printf("Failed to start REST server: %v\n", err)
 		os.Exit(1)
 	}

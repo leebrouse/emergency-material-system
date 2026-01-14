@@ -24,6 +24,17 @@ paths:
       responses:
         '200':
           description: 登录成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  expires_in:
+                    type: integer
         '401':
           description: 认证失败
 
@@ -35,13 +46,44 @@ paths:
       responses:
         '200':
           description: 登出成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
 
   /auth/refresh:
     post:
       summary: 刷新令牌
       tags:
         - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+                  description: 刷新令牌
+              required:
+                - refresh_token
       responses:
         '200':
           description: 刷新成功
-
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  expires_in:
+                    type: integer
+        '401':
+          description: 无效的刷新令牌

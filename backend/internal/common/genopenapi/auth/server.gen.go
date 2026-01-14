@@ -4,84 +4,98 @@
 package auth
 
 import (
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 )
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// 用户登录
 	// (POST /auth/login)
-	PostAuthLogin(ctx echo.Context) error
+	PostAuthLogin(c *gin.Context)
 	// 用户登出
 	// (POST /auth/logout)
-	PostAuthLogout(ctx echo.Context) error
+	PostAuthLogout(c *gin.Context)
 	// 刷新令牌
 	// (POST /auth/refresh)
-	PostAuthRefresh(ctx echo.Context) error
+	PostAuthRefresh(c *gin.Context)
 }
 
-// ServerInterfaceWrapper converts echo contexts to parameters.
+// ServerInterfaceWrapper converts contexts to parameters.
 type ServerInterfaceWrapper struct {
-	Handler ServerInterface
+	Handler            ServerInterface
+	HandlerMiddlewares []MiddlewareFunc
+	ErrorHandler       func(*gin.Context, error, int)
 }
 
-// PostAuthLogin converts echo context to params.
-func (w *ServerInterfaceWrapper) PostAuthLogin(ctx echo.Context) error {
-	var err error
+type MiddlewareFunc func(c *gin.Context)
 
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.PostAuthLogin(ctx)
-	return err
-}
+// PostAuthLogin operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthLogin(c *gin.Context) {
 
-// PostAuthLogout converts echo context to params.
-func (w *ServerInterfaceWrapper) PostAuthLogout(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.PostAuthLogout(ctx)
-	return err
-}
-
-// PostAuthRefresh converts echo context to params.
-func (w *ServerInterfaceWrapper) PostAuthRefresh(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.PostAuthRefresh(ctx)
-	return err
-}
-
-// This is a simple interface which specifies echo.Route addition functions which
-// are present on both echo.Echo and echo.Group, since we want to allow using
-// either of them for path registration
-type EchoRouter interface {
-	CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	DELETE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	GET(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	HEAD(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	OPTIONS(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PATCH(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-}
-
-// RegisterHandlers adds each server route to the EchoRouter.
-func RegisterHandlers(router EchoRouter, si ServerInterface) {
-	RegisterHandlersWithBaseURL(router, si, "")
-}
-
-// Registers handlers, and prepends BaseURL to the paths, so that the paths
-// can be served under a prefix.
-func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL string) {
-
-	wrapper := ServerInterfaceWrapper{
-		Handler: si,
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
 	}
 
-	router.POST(baseURL+"/auth/login", wrapper.PostAuthLogin)
-	router.POST(baseURL+"/auth/logout", wrapper.PostAuthLogout)
-	router.POST(baseURL+"/auth/refresh", wrapper.PostAuthRefresh)
+	siw.Handler.PostAuthLogin(c)
+}
 
+// PostAuthLogout operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthLogout(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthLogout(c)
+}
+
+// PostAuthRefresh operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthRefresh(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthRefresh(c)
+}
+
+// GinServerOptions provides options for the Gin server.
+type GinServerOptions struct {
+	BaseURL      string
+	Middlewares  []MiddlewareFunc
+	ErrorHandler func(*gin.Context, error, int)
+}
+
+// RegisterHandlers creates http.Handler with routing matching OpenAPI spec.
+func RegisterHandlers(router gin.IRouter, si ServerInterface) {
+	RegisterHandlersWithOptions(router, si, GinServerOptions{})
+}
+
+// RegisterHandlersWithOptions creates http.Handler with additional options
+func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options GinServerOptions) {
+	errorHandler := options.ErrorHandler
+	if errorHandler == nil {
+		errorHandler = func(c *gin.Context, err error, statusCode int) {
+			c.JSON(statusCode, gin.H{"msg": err.Error()})
+		}
+	}
+
+	wrapper := ServerInterfaceWrapper{
+		Handler:            si,
+		HandlerMiddlewares: options.Middlewares,
+		ErrorHandler:       errorHandler,
+	}
+
+	router.POST(options.BaseURL+"/auth/login", wrapper.PostAuthLogin)
+	router.POST(options.BaseURL+"/auth/logout", wrapper.PostAuthLogout)
+	router.POST(options.BaseURL+"/auth/refresh", wrapper.PostAuthRefresh)
 }

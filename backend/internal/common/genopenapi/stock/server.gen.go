@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 	"github.com/oapi-codegen/runtime"
 )
 
@@ -15,97 +15,119 @@ import (
 type ServerInterface interface {
 	// 获取库存信息
 	// (GET /stock/inventory)
-	GetStockInventory(ctx echo.Context) error
+	GetStockInventory(c *gin.Context)
 	// 获取物资列表
 	// (GET /stock/materials)
-	GetStockMaterials(ctx echo.Context) error
+	GetStockMaterials(c *gin.Context)
 	// 创建物资
 	// (POST /stock/materials)
-	PostStockMaterials(ctx echo.Context) error
+	PostStockMaterials(c *gin.Context)
 	// 获取物资详情
 	// (GET /stock/materials/{id})
-	GetStockMaterialsId(ctx echo.Context, id int) error
+	GetStockMaterialsId(c *gin.Context, id int)
 }
 
-// ServerInterfaceWrapper converts echo contexts to parameters.
+// ServerInterfaceWrapper converts contexts to parameters.
 type ServerInterfaceWrapper struct {
-	Handler ServerInterface
+	Handler            ServerInterface
+	HandlerMiddlewares []MiddlewareFunc
+	ErrorHandler       func(*gin.Context, error, int)
 }
 
-// GetStockInventory converts echo context to params.
-func (w *ServerInterfaceWrapper) GetStockInventory(ctx echo.Context) error {
-	var err error
+type MiddlewareFunc func(c *gin.Context)
 
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetStockInventory(ctx)
-	return err
+// GetStockInventory operation middleware
+func (siw *ServerInterfaceWrapper) GetStockInventory(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetStockInventory(c)
 }
 
-// GetStockMaterials converts echo context to params.
-func (w *ServerInterfaceWrapper) GetStockMaterials(ctx echo.Context) error {
-	var err error
+// GetStockMaterials operation middleware
+func (siw *ServerInterfaceWrapper) GetStockMaterials(c *gin.Context) {
 
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetStockMaterials(ctx)
-	return err
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetStockMaterials(c)
 }
 
-// PostStockMaterials converts echo context to params.
-func (w *ServerInterfaceWrapper) PostStockMaterials(ctx echo.Context) error {
-	var err error
+// PostStockMaterials operation middleware
+func (siw *ServerInterfaceWrapper) PostStockMaterials(c *gin.Context) {
 
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.PostStockMaterials(ctx)
-	return err
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostStockMaterials(c)
 }
 
-// GetStockMaterialsId converts echo context to params.
-func (w *ServerInterfaceWrapper) GetStockMaterialsId(ctx echo.Context) error {
+// GetStockMaterialsId operation middleware
+func (siw *ServerInterfaceWrapper) GetStockMaterialsId(c *gin.Context) {
+
 	var err error
+
 	// ------------- Path parameter "id" -------------
 	var id int
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
 	}
 
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetStockMaterialsId(ctx, id)
-	return err
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetStockMaterialsId(c, id)
 }
 
-// This is a simple interface which specifies echo.Route addition functions which
-// are present on both echo.Echo and echo.Group, since we want to allow using
-// either of them for path registration
-type EchoRouter interface {
-	CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	DELETE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	GET(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	HEAD(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	OPTIONS(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PATCH(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+// GinServerOptions provides options for the Gin server.
+type GinServerOptions struct {
+	BaseURL      string
+	Middlewares  []MiddlewareFunc
+	ErrorHandler func(*gin.Context, error, int)
 }
 
-// RegisterHandlers adds each server route to the EchoRouter.
-func RegisterHandlers(router EchoRouter, si ServerInterface) {
-	RegisterHandlersWithBaseURL(router, si, "")
+// RegisterHandlers creates http.Handler with routing matching OpenAPI spec.
+func RegisterHandlers(router gin.IRouter, si ServerInterface) {
+	RegisterHandlersWithOptions(router, si, GinServerOptions{})
 }
 
-// Registers handlers, and prepends BaseURL to the paths, so that the paths
-// can be served under a prefix.
-func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL string) {
+// RegisterHandlersWithOptions creates http.Handler with additional options
+func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options GinServerOptions) {
+	errorHandler := options.ErrorHandler
+	if errorHandler == nil {
+		errorHandler = func(c *gin.Context, err error, statusCode int) {
+			c.JSON(statusCode, gin.H{"msg": err.Error()})
+		}
+	}
 
 	wrapper := ServerInterfaceWrapper{
-		Handler: si,
+		Handler:            si,
+		HandlerMiddlewares: options.Middlewares,
+		ErrorHandler:       errorHandler,
 	}
 
-	router.GET(baseURL+"/stock/inventory", wrapper.GetStockInventory)
-	router.GET(baseURL+"/stock/materials", wrapper.GetStockMaterials)
-	router.POST(baseURL+"/stock/materials", wrapper.PostStockMaterials)
-	router.GET(baseURL+"/stock/materials/:id", wrapper.GetStockMaterialsId)
-
+	router.GET(options.BaseURL+"/stock/inventory", wrapper.GetStockInventory)
+	router.GET(options.BaseURL+"/stock/materials", wrapper.GetStockMaterials)
+	router.POST(options.BaseURL+"/stock/materials", wrapper.PostStockMaterials)
+	router.GET(options.BaseURL+"/stock/materials/:id", wrapper.GetStockMaterialsId)
 }

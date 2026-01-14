@@ -9,11 +9,13 @@ import (
 	"syscall"
 
 	_ "github.com/emergency-material-system/backend/internal/common/config"
+	"github.com/emergency-material-system/backend/internal/common/genopenapi/stock" // 导入生成的包
 	"github.com/emergency-material-system/backend/internal/stock/handler"
 	"github.com/emergency-material-system/backend/internal/stock/rpc"
 	"github.com/emergency-material-system/backend/internal/stock/service"
-	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+
+	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -58,7 +60,7 @@ func startGRPCServer(server *rpc.StockRPCServer) {
 	server.Register(grpcServer)
 	reflection.Register(grpcServer)
 
-	fmt.Println("gRPC server starting on port 9092")
+	fmt.Println("gRPC server starting on port ", viper.GetString("services.stock.grpc"))
 	if err := grpcServer.Serve(lis); err != nil {
 		fmt.Printf("Failed to serve gRPC: %v\n", err)
 		os.Exit(1)
@@ -80,20 +82,14 @@ func startRESTServer(handler *handler.StockHandler) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "stock"})
 	})
 
-	// API路由组
+	// 使用生成的路由注册器
 	api := r.Group("/api/v1")
 	{
-		stock := api.Group("/stock")
-		{
-			stock.GET("/materials", handler.ListMaterials)
-			stock.POST("/materials", handler.CreateMaterial)
-			stock.GET("/materials/:id", handler.GetMaterial)
-			stock.GET("/inventory", handler.GetInventory)
-			stock.PUT("/inventory", handler.UpdateInventory)
-		}
+		// 使用生成的 RegisterHandlers 自动注册所有路由
+		stock.RegisterHandlers(api, handler)
 	}
 
-	fmt.Println("REST API server starting on port 8082")
+	fmt.Println("REST API server starting on port ", viper.GetString("services.stock.rest"))
 	if err := r.Run(":" + viper.GetString("services.stock.rest")); err != nil {
 		fmt.Printf("Failed to start REST server: %v\n", err)
 		os.Exit(1)

@@ -9,5 +9,14 @@ type PostAuthLoginJSONBody struct {
 	Username *string `json:"username,omitempty"`
 }
 
+// PostAuthRefreshJSONBody defines parameters for PostAuthRefresh.
+type PostAuthRefreshJSONBody struct {
+	// RefreshToken 刷新令牌
+	RefreshToken string `json:"refresh_token"`
+}
+
 // PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
 type PostAuthLoginJSONRequestBody PostAuthLoginJSONBody
+
+// PostAuthRefreshJSONRequestBody defines body for PostAuthRefresh for application/json ContentType.
+type PostAuthRefreshJSONRequestBody PostAuthRefreshJSONBody

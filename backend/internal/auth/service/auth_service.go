@@ -20,21 +20,15 @@ type AuthService interface {
 type authService struct {
 	jwtSecret   []byte
 	tokenExpiry time.Duration
+	// db          *gorm.DB
 }
 
 // NewAuthService 创建认证服务
 func NewAuthService() AuthService {
 	return &authService{
 		jwtSecret:   []byte("your-secret-key"), // 应该从配置中读取
-		tokenExpiry: 24 * time.Hour,
-	}
-}
-
-// NewMockAuthService 创建模拟认证服务
-func NewMockAuthService() AuthService {
-	return &authService{
-		jwtSecret:   []byte("mock-secret-key"),
-		tokenExpiry: 24 * time.Hour,
+		tokenExpiry: 24 * time.Hour,            // 应该从配置中读取
+		// db:          db,	
 	}
 }
 

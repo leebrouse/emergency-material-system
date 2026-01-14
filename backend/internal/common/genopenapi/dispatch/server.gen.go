@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 	"github.com/oapi-codegen/runtime"
 )
 
@@ -15,120 +15,151 @@ import (
 type ServerInterface interface {
 	// 获取需求申报列表
 	// (GET /dispatch/requests)
-	GetDispatchRequests(ctx echo.Context, params GetDispatchRequestsParams) error
+	GetDispatchRequests(c *gin.Context, params GetDispatchRequestsParams)
 	// 创建需求申报
 	// (POST /dispatch/requests)
-	PostDispatchRequests(ctx echo.Context) error
+	PostDispatchRequests(c *gin.Context)
 	// 获取需求申报详情
 	// (GET /dispatch/requests/{id})
-	GetDispatchRequestsId(ctx echo.Context, id int) error
+	GetDispatchRequestsId(c *gin.Context, id int)
 	// 更新需求申报状态
 	// (PUT /dispatch/requests/{id})
-	PutDispatchRequestsId(ctx echo.Context, id int) error
+	PutDispatchRequestsId(c *gin.Context, id int)
 }
 
-// ServerInterfaceWrapper converts echo contexts to parameters.
+// ServerInterfaceWrapper converts contexts to parameters.
 type ServerInterfaceWrapper struct {
-	Handler ServerInterface
+	Handler            ServerInterface
+	HandlerMiddlewares []MiddlewareFunc
+	ErrorHandler       func(*gin.Context, error, int)
 }
 
-// GetDispatchRequests converts echo context to params.
-func (w *ServerInterfaceWrapper) GetDispatchRequests(ctx echo.Context) error {
+type MiddlewareFunc func(c *gin.Context)
+
+// GetDispatchRequests operation middleware
+func (siw *ServerInterfaceWrapper) GetDispatchRequests(c *gin.Context) {
+
 	var err error
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetDispatchRequestsParams
+
 	// ------------- Optional query parameter "page" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "page", ctx.QueryParams(), &params.Page)
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter page: %s", err))
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
 	}
 
 	// ------------- Optional query parameter "page_size" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "page_size", ctx.QueryParams(), &params.PageSize)
+	err = runtime.BindQueryParameter("form", true, false, "page_size", c.Request.URL.Query(), &params.PageSize)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter page_size: %s", err))
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page_size: %w", err), http.StatusBadRequest)
+		return
 	}
 
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetDispatchRequests(ctx, params)
-	return err
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDispatchRequests(c, params)
 }
 
-// PostDispatchRequests converts echo context to params.
-func (w *ServerInterfaceWrapper) PostDispatchRequests(ctx echo.Context) error {
-	var err error
+// PostDispatchRequests operation middleware
+func (siw *ServerInterfaceWrapper) PostDispatchRequests(c *gin.Context) {
 
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.PostDispatchRequests(ctx)
-	return err
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDispatchRequests(c)
 }
 
-// GetDispatchRequestsId converts echo context to params.
-func (w *ServerInterfaceWrapper) GetDispatchRequestsId(ctx echo.Context) error {
+// GetDispatchRequestsId operation middleware
+func (siw *ServerInterfaceWrapper) GetDispatchRequestsId(c *gin.Context) {
+
 	var err error
+
 	// ------------- Path parameter "id" -------------
 	var id int
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
 	}
 
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetDispatchRequestsId(ctx, id)
-	return err
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDispatchRequestsId(c, id)
 }
 
-// PutDispatchRequestsId converts echo context to params.
-func (w *ServerInterfaceWrapper) PutDispatchRequestsId(ctx echo.Context) error {
+// PutDispatchRequestsId operation middleware
+func (siw *ServerInterfaceWrapper) PutDispatchRequestsId(c *gin.Context) {
+
 	var err error
+
 	// ------------- Path parameter "id" -------------
 	var id int
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
 	}
 
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.PutDispatchRequestsId(ctx, id)
-	return err
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutDispatchRequestsId(c, id)
 }
 
-// This is a simple interface which specifies echo.Route addition functions which
-// are present on both echo.Echo and echo.Group, since we want to allow using
-// either of them for path registration
-type EchoRouter interface {
-	CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	DELETE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	GET(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	HEAD(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	OPTIONS(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PATCH(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+// GinServerOptions provides options for the Gin server.
+type GinServerOptions struct {
+	BaseURL      string
+	Middlewares  []MiddlewareFunc
+	ErrorHandler func(*gin.Context, error, int)
 }
 
-// RegisterHandlers adds each server route to the EchoRouter.
-func RegisterHandlers(router EchoRouter, si ServerInterface) {
-	RegisterHandlersWithBaseURL(router, si, "")
+// RegisterHandlers creates http.Handler with routing matching OpenAPI spec.
+func RegisterHandlers(router gin.IRouter, si ServerInterface) {
+	RegisterHandlersWithOptions(router, si, GinServerOptions{})
 }
 
-// Registers handlers, and prepends BaseURL to the paths, so that the paths
-// can be served under a prefix.
-func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL string) {
+// RegisterHandlersWithOptions creates http.Handler with additional options
+func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options GinServerOptions) {
+	errorHandler := options.ErrorHandler
+	if errorHandler == nil {
+		errorHandler = func(c *gin.Context, err error, statusCode int) {
+			c.JSON(statusCode, gin.H{"msg": err.Error()})
+		}
+	}
 
 	wrapper := ServerInterfaceWrapper{
-		Handler: si,
+		Handler:            si,
+		HandlerMiddlewares: options.Middlewares,
+		ErrorHandler:       errorHandler,
 	}
 
-	router.GET(baseURL+"/dispatch/requests", wrapper.GetDispatchRequests)
-	router.POST(baseURL+"/dispatch/requests", wrapper.PostDispatchRequests)
-	router.GET(baseURL+"/dispatch/requests/:id", wrapper.GetDispatchRequestsId)
-	router.PUT(baseURL+"/dispatch/requests/:id", wrapper.PutDispatchRequestsId)
-
+	router.GET(options.BaseURL+"/dispatch/requests", wrapper.GetDispatchRequests)
+	router.POST(options.BaseURL+"/dispatch/requests", wrapper.PostDispatchRequests)
+	router.GET(options.BaseURL+"/dispatch/requests/:id", wrapper.GetDispatchRequestsId)
+	router.PUT(options.BaseURL+"/dispatch/requests/:id", wrapper.PutDispatchRequestsId)
 }

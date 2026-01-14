@@ -27,43 +27,6 @@ func (s *AuthRPCServer) Register(server *grpc.Server) {
 	auth.RegisterAuthServiceServer(server, s)
 }
 
-// Login 用户登录
-func (s *AuthRPCServer) Login(ctx context.Context, req *auth.LoginRequest) (*auth.LoginResponse, error) {
-	token, refreshToken, expiresIn, err := s.authService.Login(ctx, req.Username, req.Password)
-	if err != nil {
-		return nil, err
-	}
-
-	return &auth.LoginResponse{
-		Token:        token,
-		RefreshToken: refreshToken,
-		ExpiresIn:    expiresIn,
-	}, nil
-}
-
-// Logout 用户登出
-func (s *AuthRPCServer) Logout(ctx context.Context, req *auth.LogoutRequest) (*auth.LogoutResponse, error) {
-	err := s.authService.Logout(ctx, req.Token)
-	if err != nil {
-		return nil, err
-	}
-
-	return &auth.LogoutResponse{Success: true}, nil
-}
-
-// RefreshToken 刷新令牌
-func (s *AuthRPCServer) RefreshToken(ctx context.Context, req *auth.RefreshTokenRequest) (*auth.RefreshTokenResponse, error) {
-	token, refreshToken, expiresIn, err := s.authService.RefreshToken(ctx, req.RefreshToken)
-	if err != nil {
-		return nil, err
-	}
-
-	return &auth.RefreshTokenResponse{
-		Token:        token,
-		RefreshToken: refreshToken,
-		ExpiresIn:    expiresIn,
-	}, nil
-}
 
 // ValidateToken 验证令牌
 func (s *AuthRPCServer) ValidateToken(ctx context.Context, req *auth.ValidateTokenRequest) (*auth.ValidateTokenResponse, error) {

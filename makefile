@@ -1,4 +1,6 @@
-# Makefile for emergency-material-system
+# ----------------------
+# REST 和 gRPC 代码生成相关
+# ----------------------
 
 .PHONY: help gen-openapi gen-proto clean
 
@@ -20,3 +22,40 @@ clean: ## 清理生成的文件
 	@echo "清理生成的代码文件..."
 	rm -rf ./backend/internal/common/genopenapi/
 	rm -rf ./backend/internal/common/genproto/
+
+# ----------------------
+# 服务启动相关
+# ----------------------
+
+.PHONY: run-auth run-stock run-dispatch run-statistics run-logistics run-all
+
+run-auth: ## 启动 auth 服务
+	cd backend/internal/auth && go run main.go
+
+run-stock: ## 启动 stock 服务
+	cd backend/internal/stock && go run main.go
+
+run-dispatch: ## 启动 dispatch 服务
+	cd backend/internal/dispatch && go run main.go
+
+run-statistics: ## 启动 statistics 服务
+	cd backend/internal/statistics && go run main.go
+
+run-logistics: ## 启动 logistics 服务
+	cd backend/internal/logistics && go run main.go
+
+# 一次性后台启动所有服务
+run-all: ## 一次性启动所有后端服务
+	$(MAKE) run-auth & \
+	$(MAKE) run-stock & \
+	$(MAKE) run-dispatch & \
+	$(MAKE) run-statistics & \
+	$(MAKE) run-logistics & \
+	wait
+
+# ----------------------
+# 测试相关
+# ----------------------
+test:
+	cd backend/test && \
+	k6 run k6_load_test.js

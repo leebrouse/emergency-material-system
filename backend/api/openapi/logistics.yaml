@@ -1,0 +1,211 @@
+openapi: 3.0.0
+info:
+  title: Logistics API
+  version: 1.0.0
+  description: 物流追踪与配送服务 API
+
+servers:
+  - url: http://localhost:8085/api/v1
+    description: Development server
+
+paths:
+  /logistics/tracking:
+    post:
+      summary: 创建物流追踪记录
+      description: 为物资需求创建新的物流追踪记录
+      tags:
+        - Logistics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostLogisticsTrackingJSONBody'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tracking'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /logistics/tracking/{id}:
+    get:
+      summary: 获取物流追踪信息
+      description: 根据ID获取物流追踪的详细信息
+      tags:
+        - Logistics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 物流追踪ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: 成功返回物流追踪信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tracking'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 物流追踪记录不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: 更新物流追踪状态
+      description: 更新指定物流追踪记录的状态和描述
+      tags:
+        - Logistics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 物流追踪ID
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PutLogisticsTrackingIdJSONBody'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tracking updated successfully"
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 物流追踪记录不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Tracking:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 物流追踪ID
+          example: 1
+        request_id:
+          type: integer
+          description: 关联的需求申报ID
+          example: 1
+        description:
+          type: string
+          description: 追踪描述
+          nullable: true
+          example: "物资已从仓库发出"
+        status:
+          type: string
+          description: 物流状态
+          enum: [created, picked, in_transit, delivered, cancelled]
+          example: "in_transit"
+        tracked_at:
+          type: string
+          format: date-time
+          description: 追踪时间
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+
+    PostLogisticsTrackingJSONBody:
+      type: object
+      required:
+        - request_id
+      properties:
+        request_id:
+          type: integer
+          description: 关联的需求申报ID
+          minimum: 1
+          example: 1
+        description:
+          type: string
+          description: 物流追踪描述
+          example: "开始处理物资配送"
+        status:
+          type: string
+          description: 物流状态
+          enum: [created, picked, in_transit, delivered, cancelled]
+          example: "created"
+
+    PutLogisticsTrackingIdJSONBody:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: 新的物流状态
+          enum: [created, picked, in_transit, delivered, cancelled]
+          example: "in_transit"
+        description:
+          type: string
+          description: 状态更新描述
+          example: "物资已在运输途中"
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: 错误信息
+          example: "Invalid request body"

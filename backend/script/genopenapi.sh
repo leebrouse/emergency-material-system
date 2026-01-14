@@ -52,7 +52,7 @@ function gen_for_openapi() {
     # Generate server interface
     run oapi-codegen \
       -package "$service_name" \
-      -generate server \
+      -generate gin-server \
       -o "$out_dir/server.gen.go" \
       "$openapi_file"
 

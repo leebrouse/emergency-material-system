@@ -4,84 +4,98 @@
 package statistics
 
 import (
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 )
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// 获取报表数据
 	// (GET /statistics/reports)
-	GetStatisticsReports(ctx echo.Context) error
+	GetStatisticsReports(c *gin.Context)
 	// 获取统计摘要
 	// (GET /statistics/summary)
-	GetStatisticsSummary(ctx echo.Context) error
+	GetStatisticsSummary(c *gin.Context)
 	// 获取趋势分析
 	// (GET /statistics/trends)
-	GetStatisticsTrends(ctx echo.Context) error
+	GetStatisticsTrends(c *gin.Context)
 }
 
-// ServerInterfaceWrapper converts echo contexts to parameters.
+// ServerInterfaceWrapper converts contexts to parameters.
 type ServerInterfaceWrapper struct {
-	Handler ServerInterface
+	Handler            ServerInterface
+	HandlerMiddlewares []MiddlewareFunc
+	ErrorHandler       func(*gin.Context, error, int)
 }
 
-// GetStatisticsReports converts echo context to params.
-func (w *ServerInterfaceWrapper) GetStatisticsReports(ctx echo.Context) error {
-	var err error
+type MiddlewareFunc func(c *gin.Context)
 
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetStatisticsReports(ctx)
-	return err
-}
+// GetStatisticsReports operation middleware
+func (siw *ServerInterfaceWrapper) GetStatisticsReports(c *gin.Context) {
 
-// GetStatisticsSummary converts echo context to params.
-func (w *ServerInterfaceWrapper) GetStatisticsSummary(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetStatisticsSummary(ctx)
-	return err
-}
-
-// GetStatisticsTrends converts echo context to params.
-func (w *ServerInterfaceWrapper) GetStatisticsTrends(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetStatisticsTrends(ctx)
-	return err
-}
-
-// This is a simple interface which specifies echo.Route addition functions which
-// are present on both echo.Echo and echo.Group, since we want to allow using
-// either of them for path registration
-type EchoRouter interface {
-	CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	DELETE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	GET(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	HEAD(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	OPTIONS(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PATCH(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-}
-
-// RegisterHandlers adds each server route to the EchoRouter.
-func RegisterHandlers(router EchoRouter, si ServerInterface) {
-	RegisterHandlersWithBaseURL(router, si, "")
-}
-
-// Registers handlers, and prepends BaseURL to the paths, so that the paths
-// can be served under a prefix.
-func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL string) {
-
-	wrapper := ServerInterfaceWrapper{
-		Handler: si,
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
 	}
 
-	router.GET(baseURL+"/statistics/reports", wrapper.GetStatisticsReports)
-	router.GET(baseURL+"/statistics/summary", wrapper.GetStatisticsSummary)
-	router.GET(baseURL+"/statistics/trends", wrapper.GetStatisticsTrends)
+	siw.Handler.GetStatisticsReports(c)
+}
 
+// GetStatisticsSummary operation middleware
+func (siw *ServerInterfaceWrapper) GetStatisticsSummary(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetStatisticsSummary(c)
+}
+
+// GetStatisticsTrends operation middleware
+func (siw *ServerInterfaceWrapper) GetStatisticsTrends(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetStatisticsTrends(c)
+}
+
+// GinServerOptions provides options for the Gin server.
+type GinServerOptions struct {
+	BaseURL      string
+	Middlewares  []MiddlewareFunc
+	ErrorHandler func(*gin.Context, error, int)
+}
+
+// RegisterHandlers creates http.Handler with routing matching OpenAPI spec.
+func RegisterHandlers(router gin.IRouter, si ServerInterface) {
+	RegisterHandlersWithOptions(router, si, GinServerOptions{})
+}
+
+// RegisterHandlersWithOptions creates http.Handler with additional options
+func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options GinServerOptions) {
+	errorHandler := options.ErrorHandler
+	if errorHandler == nil {
+		errorHandler = func(c *gin.Context, err error, statusCode int) {
+			c.JSON(statusCode, gin.H{"msg": err.Error()})
+		}
+	}
+
+	wrapper := ServerInterfaceWrapper{
+		Handler:            si,
+		HandlerMiddlewares: options.Middlewares,
+		ErrorHandler:       errorHandler,
+	}
+
+	router.GET(options.BaseURL+"/statistics/reports", wrapper.GetStatisticsReports)
+	router.GET(options.BaseURL+"/statistics/summary", wrapper.GetStatisticsSummary)
+	router.GET(options.BaseURL+"/statistics/trends", wrapper.GetStatisticsTrends)
 }

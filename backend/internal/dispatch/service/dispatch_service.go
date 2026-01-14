@@ -23,11 +23,6 @@ func NewDispatchService() DispatchService {
 	return &dispatchService{}
 }
 
-// NewMockDispatchService 创建模拟调度服务
-func NewMockDispatchService() DispatchService {
-	return &dispatchService{}
-}
-
 // ListRequests 获取需求申报列表
 func (s *dispatchService) ListRequests(ctx context.Context, page, pageSize int) ([]*model.Request, int64, error) {
 	// 返回模拟数据

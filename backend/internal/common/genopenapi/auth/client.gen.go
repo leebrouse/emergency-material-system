@@ -95,8 +95,10 @@ type ClientInterface interface {
 	// PostAuthLogout request
 	PostAuthLogout(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostAuthRefresh request
-	PostAuthRefresh(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PostAuthRefreshWithBody request with any body
+	PostAuthRefreshWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAuthRefresh(ctx context.Context, body PostAuthRefreshJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) PostAuthLoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -135,8 +137,20 @@ func (c *Client) PostAuthLogout(ctx context.Context, reqEditors ...RequestEditor
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostAuthRefresh(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostAuthRefreshRequest(c.Server)
+func (c *Client) PostAuthRefreshWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAuthRefreshRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAuthRefresh(ctx context.Context, body PostAuthRefreshJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAuthRefreshRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -214,8 +228,19 @@ func NewPostAuthLogoutRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewPostAuthRefreshRequest generates requests for PostAuthRefresh
-func NewPostAuthRefreshRequest(server string) (*http.Request, error) {
+// NewPostAuthRefreshRequest calls the generic PostAuthRefresh builder with application/json body
+func NewPostAuthRefreshRequest(server string, body PostAuthRefreshJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAuthRefreshRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAuthRefreshRequestWithBody generates requests for PostAuthRefresh with any type of body
+func NewPostAuthRefreshRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -233,10 +258,12 @@ func NewPostAuthRefreshRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -292,13 +319,20 @@ type ClientWithResponsesInterface interface {
 	// PostAuthLogoutWithResponse request
 	PostAuthLogoutWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostAuthLogoutResponse, error)
 
-	// PostAuthRefreshWithResponse request
-	PostAuthRefreshWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostAuthRefreshResponse, error)
+	// PostAuthRefreshWithBodyWithResponse request with any body
+	PostAuthRefreshWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthRefreshResponse, error)
+
+	PostAuthRefreshWithResponse(ctx context.Context, body PostAuthRefreshJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthRefreshResponse, error)
 }
 
 type PostAuthLoginResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *struct {
+		ExpiresIn    *int    `json:"expires_in,omitempty"`
+		RefreshToken *string `json:"refresh_token,omitempty"`
+		Token        *string `json:"token,omitempty"`
+	}
 }
 
 // Status returns HTTPResponse.Status
@@ -320,6 +354,9 @@ func (r PostAuthLoginResponse) StatusCode() int {
 type PostAuthLogoutResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *struct {
+		Message *string `json:"message,omitempty"`
+	}
 }
 
 // Status returns HTTPResponse.Status
@@ -341,6 +378,11 @@ func (r PostAuthLogoutResponse) StatusCode() int {
 type PostAuthRefreshResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *struct {
+		ExpiresIn    *int    `json:"expires_in,omitempty"`
+		RefreshToken *string `json:"refresh_token,omitempty"`
+		Token        *string `json:"token,omitempty"`
+	}
 }
 
 // Status returns HTTPResponse.Status
@@ -385,9 +427,17 @@ func (c *ClientWithResponses) PostAuthLogoutWithResponse(ctx context.Context, re
 	return ParsePostAuthLogoutResponse(rsp)
 }
 
-// PostAuthRefreshWithResponse request returning *PostAuthRefreshResponse
-func (c *ClientWithResponses) PostAuthRefreshWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostAuthRefreshResponse, error) {
-	rsp, err := c.PostAuthRefresh(ctx, reqEditors...)
+// PostAuthRefreshWithBodyWithResponse request with arbitrary body returning *PostAuthRefreshResponse
+func (c *ClientWithResponses) PostAuthRefreshWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthRefreshResponse, error) {
+	rsp, err := c.PostAuthRefreshWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAuthRefreshResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAuthRefreshWithResponse(ctx context.Context, body PostAuthRefreshJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthRefreshResponse, error) {
+	rsp, err := c.PostAuthRefresh(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -407,6 +457,20 @@ func ParsePostAuthLoginResponse(rsp *http.Response) (*PostAuthLoginResponse, err
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			ExpiresIn    *int    `json:"expires_in,omitempty"`
+			RefreshToken *string `json:"refresh_token,omitempty"`
+			Token        *string `json:"token,omitempty"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
 	return response, nil
 }
 
@@ -423,6 +487,18 @@ func ParsePostAuthLogoutResponse(rsp *http.Response) (*PostAuthLogoutResponse, e
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Message *string `json:"message,omitempty"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
 	return response, nil
 }
 
@@ -437,6 +513,20 @@ func ParsePostAuthRefreshResponse(rsp *http.Response) (*PostAuthRefreshResponse,
 	response := &PostAuthRefreshResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			ExpiresIn    *int    `json:"expires_in,omitempty"`
+			RefreshToken *string `json:"refresh_token,omitempty"`
+			Token        *string `json:"token,omitempty"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil
