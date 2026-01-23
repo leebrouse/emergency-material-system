@@ -5,8 +5,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 
 	_ "github.com/emergency-material-system/backend/internal/common/config"
 	"github.com/emergency-material-system/backend/internal/common/genopenapi/dispatch"
@@ -37,11 +35,6 @@ func main() {
 
 	// 启动REST API服务器 (端口8083)
 	startRESTServer(dispatchHandler)
-
-	// 等待中断信号
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
 
 	fmt.Println("Shutting down dispatch service...")
 }

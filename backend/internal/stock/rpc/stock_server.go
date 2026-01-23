@@ -30,7 +30,7 @@ func (s *StockRPCServer) Register(server *grpc.Server) {
 
 // ListMaterials 获取物资列表
 func (s *StockRPCServer) ListMaterials(ctx context.Context, req *stock.ListMaterialsRequest) (*stock.ListMaterialsResponse, error) {
-	materials, total, err := s.stockService.ListMaterials(ctx, int(req.Page), int(req.PageSize))
+	materials, total, err := s.stockService.ListMaterials(ctx, int(req.Page), int(req.PageSize), "")
 	if err != nil {
 		return nil, err
 	}
@@ -41,9 +41,9 @@ func (s *StockRPCServer) ListMaterials(ctx context.Context, req *stock.ListMater
 		materialProtos = append(materialProtos, &stock.Material{
 			Id:          int64(m.ID),
 			Name:        m.Name,
-			Description: *m.Description,
-			Category:    *m.Category,
-			Unit:        *m.Unit,
+			Description: m.Description,
+			Category:    m.Category,
+			Unit:        m.Unit,
 		})
 	}
 
@@ -64,9 +64,9 @@ func (s *StockRPCServer) GetMaterial(ctx context.Context, req *stock.GetMaterial
 		Material: &stock.Material{
 			Id:          int64(material.ID),
 			Name:        material.Name,
-			Description: *material.Description,
-			Category:    *material.Category,
-			Unit:        *material.Unit,
+			Description: material.Description,
+			Category:    material.Category,
+			Unit:        material.Unit,
 		},
 	}, nil
 }

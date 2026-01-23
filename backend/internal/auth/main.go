@@ -5,8 +5,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/emergency-material-system/backend/internal/auth/handler"
 	"github.com/emergency-material-system/backend/internal/auth/rpc"
@@ -23,7 +21,6 @@ import (
 func main() {
 	fmt.Println("Starting auth service...")
 
-	// 暂时使用mock服务，不连接数据库
 	authService := service.NewAuthService()
 
 	// 初始化处理器
@@ -37,11 +34,6 @@ func main() {
 
 	// 启动REST API服务器 (端口8081)
 	startRESTServer(authHandler)
-
-	// 等待中断信号
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
 
 	fmt.Println("Shutting down auth service...")
 }

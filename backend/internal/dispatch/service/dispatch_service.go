@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 
 	"github.com/emergency-material-system/backend/internal/dispatch/model"
 )
@@ -25,52 +24,22 @@ func NewDispatchService() DispatchService {
 
 // ListRequests 获取需求申报列表
 func (s *dispatchService) ListRequests(ctx context.Context, page, pageSize int) ([]*model.Request, int64, error) {
-	// 返回模拟数据
-	requests := []*model.Request{
-		{
-			ID:           1,
-			RequesterID:  &[]uint{1}[0],
-			MaterialID:   &[]uint{1}[0],
-			Quantity:     &[]int{100}[0],
-			UrgencyLevel: &[]string{"high"}[0],
-			Description:  &[]string{"急需口罩"}[0],
-			Status:       model.RequestStatusPending,
-		},
-	}
-
-	return requests, 1, nil
+	return nil, 0, nil
 }
 
 // GetRequest 获取需求申报详情
 func (s *dispatchService) GetRequest(ctx context.Context, id uint) (*model.Request, error) {
-	if id == 1 {
-		return &model.Request{
-			ID:           1,
-			RequesterID:  &[]uint{1}[0],
-			MaterialID:   &[]uint{1}[0],
-			Quantity:     &[]int{100}[0],
-			UrgencyLevel: &[]string{"high"}[0],
-			Description:  &[]string{"急需口罩"}[0],
-			Status:       model.RequestStatusPending,
-		}, nil
-	}
-
-	return nil, errors.New("request not found")
+	return nil, nil
 }
 
 // CreateRequest 创建需求申报
 func (s *dispatchService) CreateRequest(ctx context.Context, req interface{}) (*model.Request, error) {
+	// 1.调 grpc stock service
+
+	// 2. 满足则创建，不然erro
+
 	// 模拟创建需求申报
-	request := &model.Request{
-		ID:           2, // 模拟ID
-		RequesterID:  &[]uint{1}[0],
-		MaterialID:   &[]uint{1}[0],
-		Quantity:     &[]int{100}[0],
-		UrgencyLevel: &[]string{"high"}[0],
-		Description:  &[]string{"模拟需求"}[0],
-		Status:       model.RequestStatusPending,
-	}
-	return request, nil
+	return nil, nil
 }
 
 // UpdateRequestStatus 更新需求申报状态

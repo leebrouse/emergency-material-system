@@ -27,7 +27,6 @@ func (s *AuthRPCServer) Register(server *grpc.Server) {
 	auth.RegisterAuthServiceServer(server, s)
 }
 
-
 // ValidateToken 验证令牌
 func (s *AuthRPCServer) ValidateToken(ctx context.Context, req *auth.ValidateTokenRequest) (*auth.ValidateTokenResponse, error) {
 	valid, userID, roles, err := s.authService.ValidateToken(ctx, req.Token)

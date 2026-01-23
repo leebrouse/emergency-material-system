@@ -5,8 +5,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 
 	_ "github.com/emergency-material-system/backend/internal/common/config"
 	"github.com/emergency-material-system/backend/internal/common/genopenapi/logistics" // 导入生成的包
@@ -36,12 +34,7 @@ func main() {
 	go startGRPCServer(logisticsRPCServer)
 
 	// 启动REST API服务器 (端口8085)
-	go startRESTServer(logisticsHandler)
-
-	// 等待中断信号
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	startRESTServer(logisticsHandler)
 
 	fmt.Println("Shutting down logistics service...")
 }

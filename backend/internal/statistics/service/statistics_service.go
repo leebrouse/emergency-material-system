@@ -19,11 +19,6 @@ func NewStatisticsService() StatisticsService {
 	return &statisticsService{}
 }
 
-// NewMockStatisticsService 创建模拟统计服务
-func NewMockStatisticsService() StatisticsService {
-	return &statisticsService{}
-}
-
 // OverviewData 总览数据
 type OverviewData struct {
 	TotalMaterials    int64 `json:"total_materials"`

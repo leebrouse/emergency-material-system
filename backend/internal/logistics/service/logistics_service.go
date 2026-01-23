@@ -23,12 +23,6 @@ func NewLogisticsService() LogisticsService {
 	return &logisticsService{}
 }
 
-// NewMockLogisticsService 创建模拟物流服务
-func NewMockLogisticsService() LogisticsService {
-	return &logisticsService{
-	}
-}
-
 // GetTracking 获取物流追踪信息
 func (s *logisticsService) GetTracking(ctx context.Context, id uint) (*model.Tracking, error) {
 

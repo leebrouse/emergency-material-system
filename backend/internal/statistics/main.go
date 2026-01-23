@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 
 	_ "github.com/emergency-material-system/backend/internal/common/config"
 	"github.com/emergency-material-system/backend/internal/common/genopenapi/statistics"
@@ -19,18 +17,13 @@ func main() {
 	fmt.Println("Starting statistics service...")
 
 	// 暂时使用mock服务，不连接数据库
-	statisticsService := service.NewMockStatisticsService()
+	statisticsService := service.NewStatisticsService()
 
 	// 初始化处理器
 	statisticsHandler := handler.NewStatisticsHandler(statisticsService)
 
 	// 启动REST API服务器 (端口8084)
 	startRESTServer(statisticsHandler)
-
-	// 等待中断信号
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
 
 	fmt.Println("Shutting down statistics service...")
 }

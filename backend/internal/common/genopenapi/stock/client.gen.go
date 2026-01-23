@@ -4,7 +4,9 @@
 package stock
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -87,17 +89,43 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// PostStockInbound request
+	PostStockInbound(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetStockInventory request
 	GetStockInventory(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetStockMaterials request
-	GetStockMaterials(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetStockMaterials(ctx context.Context, params *GetStockMaterialsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostStockMaterials request
-	PostStockMaterials(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PostStockMaterialsWithBody request with any body
+	PostStockMaterialsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostStockMaterials(ctx context.Context, body PostStockMaterialsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetStockMaterialsId request
 	GetStockMaterialsId(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostStockOutbound request
+	PostStockOutbound(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetStockStats request
+	GetStockStats(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostStockTransfer request
+	PostStockTransfer(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) PostStockInbound(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostStockInboundRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) GetStockInventory(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -112,8 +140,8 @@ func (c *Client) GetStockInventory(ctx context.Context, reqEditors ...RequestEdi
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetStockMaterials(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetStockMaterialsRequest(c.Server)
+func (c *Client) GetStockMaterials(ctx context.Context, params *GetStockMaterialsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetStockMaterialsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -124,8 +152,20 @@ func (c *Client) GetStockMaterials(ctx context.Context, reqEditors ...RequestEdi
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostStockMaterials(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostStockMaterialsRequest(c.Server)
+func (c *Client) PostStockMaterialsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostStockMaterialsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostStockMaterials(ctx context.Context, body PostStockMaterialsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostStockMaterialsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -146,6 +186,69 @@ func (c *Client) GetStockMaterialsId(ctx context.Context, id int, reqEditors ...
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+func (c *Client) PostStockOutbound(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostStockOutboundRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetStockStats(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetStockStatsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostStockTransfer(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostStockTransferRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewPostStockInboundRequest generates requests for PostStockInbound
+func NewPostStockInboundRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/stock/inbound")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewGetStockInventoryRequest generates requests for GetStockInventory
@@ -176,7 +279,7 @@ func NewGetStockInventoryRequest(server string) (*http.Request, error) {
 }
 
 // NewGetStockMaterialsRequest generates requests for GetStockMaterials
-func NewGetStockMaterialsRequest(server string) (*http.Request, error) {
+func NewGetStockMaterialsRequest(server string, params *GetStockMaterialsParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -192,6 +295,60 @@ func NewGetStockMaterialsRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PageSize != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page_size", runtime.ParamLocationQuery, *params.PageSize); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Search != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "search", runtime.ParamLocationQuery, *params.Search); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -202,8 +359,19 @@ func NewGetStockMaterialsRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewPostStockMaterialsRequest generates requests for PostStockMaterials
-func NewPostStockMaterialsRequest(server string) (*http.Request, error) {
+// NewPostStockMaterialsRequest calls the generic PostStockMaterials builder with application/json body
+func NewPostStockMaterialsRequest(server string, body PostStockMaterialsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostStockMaterialsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostStockMaterialsRequestWithBody generates requests for PostStockMaterials with any type of body
+func NewPostStockMaterialsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -221,10 +389,12 @@ func NewPostStockMaterialsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -256,6 +426,87 @@ func NewGetStockMaterialsIdRequest(server string, id int) (*http.Request, error)
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostStockOutboundRequest generates requests for PostStockOutbound
+func NewPostStockOutboundRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/stock/outbound")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetStockStatsRequest generates requests for GetStockStats
+func NewGetStockStatsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/stock/stats")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostStockTransferRequest generates requests for PostStockTransfer
+func NewPostStockTransferRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/stock/transfer")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -306,17 +557,52 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// PostStockInboundWithResponse request
+	PostStockInboundWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostStockInboundResponse, error)
+
 	// GetStockInventoryWithResponse request
 	GetStockInventoryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetStockInventoryResponse, error)
 
 	// GetStockMaterialsWithResponse request
-	GetStockMaterialsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetStockMaterialsResponse, error)
+	GetStockMaterialsWithResponse(ctx context.Context, params *GetStockMaterialsParams, reqEditors ...RequestEditorFn) (*GetStockMaterialsResponse, error)
 
-	// PostStockMaterialsWithResponse request
-	PostStockMaterialsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostStockMaterialsResponse, error)
+	// PostStockMaterialsWithBodyWithResponse request with any body
+	PostStockMaterialsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostStockMaterialsResponse, error)
+
+	PostStockMaterialsWithResponse(ctx context.Context, body PostStockMaterialsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostStockMaterialsResponse, error)
 
 	// GetStockMaterialsIdWithResponse request
 	GetStockMaterialsIdWithResponse(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*GetStockMaterialsIdResponse, error)
+
+	// PostStockOutboundWithResponse request
+	PostStockOutboundWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostStockOutboundResponse, error)
+
+	// GetStockStatsWithResponse request
+	GetStockStatsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetStockStatsResponse, error)
+
+	// PostStockTransferWithResponse request
+	PostStockTransferWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostStockTransferResponse, error)
+}
+
+type PostStockInboundResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r PostStockInboundResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostStockInboundResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type GetStockInventoryResponse struct {
@@ -403,6 +689,78 @@ func (r GetStockMaterialsIdResponse) StatusCode() int {
 	return 0
 }
 
+type PostStockOutboundResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r PostStockOutboundResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostStockOutboundResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetStockStatsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r GetStockStatsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetStockStatsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostStockTransferResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r PostStockTransferResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostStockTransferResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// PostStockInboundWithResponse request returning *PostStockInboundResponse
+func (c *ClientWithResponses) PostStockInboundWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostStockInboundResponse, error) {
+	rsp, err := c.PostStockInbound(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostStockInboundResponse(rsp)
+}
+
 // GetStockInventoryWithResponse request returning *GetStockInventoryResponse
 func (c *ClientWithResponses) GetStockInventoryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetStockInventoryResponse, error) {
 	rsp, err := c.GetStockInventory(ctx, reqEditors...)
@@ -413,17 +771,25 @@ func (c *ClientWithResponses) GetStockInventoryWithResponse(ctx context.Context,
 }
 
 // GetStockMaterialsWithResponse request returning *GetStockMaterialsResponse
-func (c *ClientWithResponses) GetStockMaterialsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetStockMaterialsResponse, error) {
-	rsp, err := c.GetStockMaterials(ctx, reqEditors...)
+func (c *ClientWithResponses) GetStockMaterialsWithResponse(ctx context.Context, params *GetStockMaterialsParams, reqEditors ...RequestEditorFn) (*GetStockMaterialsResponse, error) {
+	rsp, err := c.GetStockMaterials(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseGetStockMaterialsResponse(rsp)
 }
 
-// PostStockMaterialsWithResponse request returning *PostStockMaterialsResponse
-func (c *ClientWithResponses) PostStockMaterialsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostStockMaterialsResponse, error) {
-	rsp, err := c.PostStockMaterials(ctx, reqEditors...)
+// PostStockMaterialsWithBodyWithResponse request with arbitrary body returning *PostStockMaterialsResponse
+func (c *ClientWithResponses) PostStockMaterialsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostStockMaterialsResponse, error) {
+	rsp, err := c.PostStockMaterialsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostStockMaterialsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostStockMaterialsWithResponse(ctx context.Context, body PostStockMaterialsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostStockMaterialsResponse, error) {
+	rsp, err := c.PostStockMaterials(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -437,6 +803,49 @@ func (c *ClientWithResponses) GetStockMaterialsIdWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseGetStockMaterialsIdResponse(rsp)
+}
+
+// PostStockOutboundWithResponse request returning *PostStockOutboundResponse
+func (c *ClientWithResponses) PostStockOutboundWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostStockOutboundResponse, error) {
+	rsp, err := c.PostStockOutbound(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostStockOutboundResponse(rsp)
+}
+
+// GetStockStatsWithResponse request returning *GetStockStatsResponse
+func (c *ClientWithResponses) GetStockStatsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetStockStatsResponse, error) {
+	rsp, err := c.GetStockStats(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetStockStatsResponse(rsp)
+}
+
+// PostStockTransferWithResponse request returning *PostStockTransferResponse
+func (c *ClientWithResponses) PostStockTransferWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostStockTransferResponse, error) {
+	rsp, err := c.PostStockTransfer(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostStockTransferResponse(rsp)
+}
+
+// ParsePostStockInboundResponse parses an HTTP response from a PostStockInboundWithResponse call
+func ParsePostStockInboundResponse(rsp *http.Response) (*PostStockInboundResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostStockInboundResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
 }
 
 // ParseGetStockInventoryResponse parses an HTTP response from a GetStockInventoryWithResponse call
@@ -496,6 +905,54 @@ func ParseGetStockMaterialsIdResponse(rsp *http.Response) (*GetStockMaterialsIdR
 	}
 
 	response := &GetStockMaterialsIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParsePostStockOutboundResponse parses an HTTP response from a PostStockOutboundWithResponse call
+func ParsePostStockOutboundResponse(rsp *http.Response) (*PostStockOutboundResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostStockOutboundResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetStockStatsResponse parses an HTTP response from a GetStockStatsWithResponse call
+func ParseGetStockStatsResponse(rsp *http.Response) (*GetStockStatsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetStockStatsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParsePostStockTransferResponse parses an HTTP response from a PostStockTransferWithResponse call
+func ParsePostStockTransferResponse(rsp *http.Response) (*PostStockTransferResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostStockTransferResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

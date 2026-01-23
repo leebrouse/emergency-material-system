@@ -13,18 +13,30 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// 物资入库
+	// (POST /stock/inbound)
+	PostStockInbound(c *gin.Context)
 	// 获取库存信息
 	// (GET /stock/inventory)
 	GetStockInventory(c *gin.Context)
 	// 获取物资列表
 	// (GET /stock/materials)
-	GetStockMaterials(c *gin.Context)
+	GetStockMaterials(c *gin.Context, params GetStockMaterialsParams)
 	// 创建物资
 	// (POST /stock/materials)
 	PostStockMaterials(c *gin.Context)
 	// 获取物资详情
 	// (GET /stock/materials/{id})
 	GetStockMaterialsId(c *gin.Context, id int)
+	// 物资出库
+	// (POST /stock/outbound)
+	PostStockOutbound(c *gin.Context)
+	// 库存统计
+	// (GET /stock/stats)
+	GetStockStats(c *gin.Context)
+	// 库存调拨
+	// (POST /stock/transfer)
+	PostStockTransfer(c *gin.Context)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -35,6 +47,19 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(c *gin.Context)
+
+// PostStockInbound operation middleware
+func (siw *ServerInterfaceWrapper) PostStockInbound(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostStockInbound(c)
+}
 
 // GetStockInventory operation middleware
 func (siw *ServerInterfaceWrapper) GetStockInventory(c *gin.Context) {
@@ -52,6 +77,35 @@ func (siw *ServerInterfaceWrapper) GetStockInventory(c *gin.Context) {
 // GetStockMaterials operation middleware
 func (siw *ServerInterfaceWrapper) GetStockMaterials(c *gin.Context) {
 
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetStockMaterialsParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page_size" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page_size", c.Request.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page_size: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "search" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "search", c.Request.URL.Query(), &params.Search)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter search: %w", err), http.StatusBadRequest)
+		return
+	}
+
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
 		if c.IsAborted() {
@@ -59,7 +113,7 @@ func (siw *ServerInterfaceWrapper) GetStockMaterials(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.GetStockMaterials(c)
+	siw.Handler.GetStockMaterials(c, params)
 }
 
 // PostStockMaterials operation middleware
@@ -99,6 +153,45 @@ func (siw *ServerInterfaceWrapper) GetStockMaterialsId(c *gin.Context) {
 	siw.Handler.GetStockMaterialsId(c, id)
 }
 
+// PostStockOutbound operation middleware
+func (siw *ServerInterfaceWrapper) PostStockOutbound(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostStockOutbound(c)
+}
+
+// GetStockStats operation middleware
+func (siw *ServerInterfaceWrapper) GetStockStats(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetStockStats(c)
+}
+
+// PostStockTransfer operation middleware
+func (siw *ServerInterfaceWrapper) PostStockTransfer(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostStockTransfer(c)
+}
+
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL      string
@@ -126,8 +219,12 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
+	router.POST(options.BaseURL+"/stock/inbound", wrapper.PostStockInbound)
 	router.GET(options.BaseURL+"/stock/inventory", wrapper.GetStockInventory)
 	router.GET(options.BaseURL+"/stock/materials", wrapper.GetStockMaterials)
 	router.POST(options.BaseURL+"/stock/materials", wrapper.PostStockMaterials)
 	router.GET(options.BaseURL+"/stock/materials/:id", wrapper.GetStockMaterialsId)
+	router.POST(options.BaseURL+"/stock/outbound", wrapper.PostStockOutbound)
+	router.GET(options.BaseURL+"/stock/stats", wrapper.GetStockStats)
+	router.POST(options.BaseURL+"/stock/transfer", wrapper.PostStockTransfer)
 }

@@ -22,13 +22,7 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 
 // PostAuthLogin 用户登录 - 实现 ServerInterface（简化版，只返回 200 OK）
 func (h *AuthHandler) PostAuthLogin(c *gin.Context) {
-	// 按 OpenAPI 类型解析请求体，以保证契约不变（忽略解析错误细节）
-	// var _ auth.PostAuthLoginJSONBody
-	// _ = c.ShouldBindJSON(&_)
-
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-	})
+	
 }
 
 // PostAuthLogout 用户登出 - 实现 ServerInterface（简化版，只返回 200 OK）

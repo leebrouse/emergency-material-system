@@ -3,119 +3,199 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/emergency-material-system/backend/internal/stock/model"
+	"github.com/emergency-material-system/backend/internal/stock/repository"
 )
+
+// DTOs for stock operations
+type InboundRequest struct {
+	MaterialID uint   `json:"material_id" binding:"required"`
+	Location   string `json:"location" binding:"required"`
+	Quantity   int64  `json:"quantity" binding:"required,gt=0"`
+	OperatorID uint   `json:"operator_id"`
+	Remark     string `json:"remark"`
+}
+
+type OutboundRequest struct {
+	MaterialID uint   `json:"material_id" binding:"required"`
+	Location   string `json:"location" binding:"required"`
+	Quantity   int64  `json:"quantity" binding:"required,gt=0"`
+	OperatorID uint   `json:"operator_id"`
+	Remark     string `json:"remark"`
+}
+
+type TransferRequest struct {
+	MaterialID   uint   `json:"material_id" binding:"required"`
+	FromLocation string `json:"from_location" binding:"required"`
+	ToLocation   string `json:"to_location" binding:"required"`
+	Quantity     int64  `json:"quantity" binding:"required,gt=0"`
+	OperatorID   uint   `json:"operator_id"`
+	Remark       string `json:"remark"`
+}
 
 // StockService 物资库存服务接口
 type StockService interface {
-	ListMaterials(ctx context.Context, page, pageSize int) ([]*model.Material, int64, error)
+	// Material Management
+	CreateMaterial(ctx context.Context, m *model.Material) error
+	ListMaterials(ctx context.Context, page, pageSize int, search string) ([]*model.Material, int64, error)
 	GetMaterial(ctx context.Context, id uint) (*model.Material, error)
-	// CreateMaterial(ctx context.Context, req stock.PostStockMaterialsJSONBody) (*model.Material, error)
-	GetInventory(ctx context.Context) ([]*model.Inventory, error)
-	// UpdateInventory(ctx context.Context, req stock.PutStockInventoryJSONBody) error
+
+	// Stock Operations
+	Inbound(ctx context.Context, req *InboundRequest) error
+	Outbound(ctx context.Context, req *OutboundRequest) error
+	Transfer(ctx context.Context, req *TransferRequest) error
+
+	// Inventory & Stats
+	ListInventory(ctx context.Context, page, pageSize int) ([]*model.Inventory, int64, error)
+	GetInventoryStats(ctx context.Context) ([]map[string]interface{}, error)
 }
 
-// stockService 物资库存服务实现
-type stockService struct{}
-
-// NewStockService 创建物资库存服务
-func NewStockService() StockService {
-	return &stockService{}
+type stockService struct {
+	repo repository.StockRepository
 }
 
-// NewMockStockService 创建模拟物资库存服务
-func NewMockStockService() StockService {
-	return &stockService{}
+func NewStockService(repo repository.StockRepository) StockService {
+	return &stockService{repo: repo}
 }
 
-// ListMaterials 获取物资列表
-func (s *stockService) ListMaterials(ctx context.Context, page, pageSize int) ([]*model.Material, int64, error) {
-	// 返回模拟数据
-	materials := []*model.Material{
-		{
-			ID:          1,
-			Name:        "口罩",
-			Description: &[]string{"N95口罩"}[0],
-			Category:    &[]string{"医疗物资"}[0],
-			Unit:        &[]string{"个"}[0],
-			Status:      model.MaterialStatusActive,
-		},
-		{
-			ID:          2,
-			Name:        "手套",
-			Description: &[]string{"医用手套"}[0],
-			Category:    &[]string{"医疗物资"}[0],
-			Unit:        &[]string{"双"}[0],
-			Status:      model.MaterialStatusActive,
-		},
-	}
-
-	return materials, 2, nil
+func (s *stockService) CreateMaterial(ctx context.Context, m *model.Material) error {
+	return s.repo.CreateMaterial(ctx, m)
 }
 
-// GetMaterial 获取物资详情
+func (s *stockService) ListMaterials(ctx context.Context, page, pageSize int, search string) ([]*model.Material, int64, error) {
+	offset := (page - 1) * pageSize
+	return s.repo.ListMaterials(ctx, offset, pageSize, search)
+}
+
 func (s *stockService) GetMaterial(ctx context.Context, id uint) (*model.Material, error) {
-	// 返回模拟数据
-	if id == 1 {
-		return &model.Material{
-			ID:          1,
-			Name:        "口罩",
-			Description: &[]string{"N95口罩"}[0],
-			Category:    &[]string{"医疗物资"}[0],
-			Unit:        &[]string{"个"}[0],
-			Status:      model.MaterialStatusActive,
-		}, nil
-	}
-
-	return nil, errors.New("material not found")
+	return s.repo.GetMaterialByID(ctx, id)
 }
 
-// CreateMaterial 创建物资
-// func (s *stockService) CreateMaterial(ctx context.Context, req stock.PostStockMaterialsJSONBody) (*model.Material, error) {
+func (s *stockService) Inbound(ctx context.Context, req *InboundRequest) error {
+	return s.repo.Transaction(ctx, func(tx repository.StockRepository) error {
+		inv, err := tx.GetInventoryForUpdate(ctx, req.MaterialID, req.Location)
+		if err != nil {
+			// If not found, create new record
+			inv = &model.Inventory{
+				MaterialID:        req.MaterialID,
+				WarehouseLocation: req.Location,
+				Quantity:          0,
+			}
+		}
 
-// 	if req.Name == nil || *req.Name == "" {
-// 		return nil, errors.New("material name is required")
-// 	}
+		inv.Quantity += req.Quantity
+		if err := tx.UpsertInventory(ctx, inv); err != nil {
+			return err
+		}
 
-// 	// 模拟创建
-// 	material := &model.Material{
-// 		ID:          3, // 模拟ID
-// 		Name:        *req.Name,
-// 		Description: req.Description,
-// 		Category:    req.Category,
-// 		Unit:        req.Unit,
-// 		Status:      model.MaterialStatusActive,
-// 	}
-
-// 	return material, nil
-// }
-
-// GetInventory 获取库存信息
-func (s *stockService) GetInventory(ctx context.Context) ([]*model.Inventory, error) {
-	// 返回模拟数据
-	inventory := []*model.Inventory{
-		{
-			ID:         1,
-			MaterialID: 1,
-			Quantity:   1000,
-			Location:   &[]string{"仓库A"}[0],
-			Status:     model.InvStatusAvailable,
-		},
-		{
-			ID:         2,
-			MaterialID: 2,
-			Quantity:   500,
-			Location:   &[]string{"仓库B"}[0],
-			Status:     model.InvStatusAvailable,
-		},
-	}
-
-	return inventory, nil
+		// Log entry
+		return tx.CreateStockLog(ctx, &model.StockLog{
+			MaterialID:     req.MaterialID,
+			InventoryID:    inv.ID,
+			Type:           model.LogTypeInbound,
+			QuantityChange: req.Quantity,
+			BalanceAfter:   inv.Quantity,
+			OperatorID:     req.OperatorID,
+			Remark:         req.Remark,
+		})
+	})
 }
 
-// // UpdateInventory 更新库存
-// func (s *stockService) UpdateInventory(ctx context.Context, req stock.PutStockInventoryJSONBody) error {
-// 	// 模拟更新
-// 	return nil
-// }
+func (s *stockService) Outbound(ctx context.Context, req *OutboundRequest) error {
+	return s.repo.Transaction(ctx, func(tx repository.StockRepository) error {
+		inv, err := tx.GetInventoryForUpdate(ctx, req.MaterialID, req.Location)
+		if err != nil {
+			return fmt.Errorf("inventory not found: %w", err)
+		}
+
+		if inv.Quantity < req.Quantity {
+			return errors.New("insufficient stock")
+		}
+
+		inv.Quantity -= req.Quantity
+		if err := tx.UpsertInventory(ctx, inv); err != nil {
+			return err
+		}
+
+		// Check for stock alert
+		if inv.Quantity < inv.StockAlertThreshold {
+			s.triggerStockAlert(inv)
+		}
+
+		return tx.CreateStockLog(ctx, &model.StockLog{
+			MaterialID:     req.MaterialID,
+			InventoryID:    inv.ID,
+			Type:           model.LogTypeOutbound,
+			QuantityChange: -req.Quantity,
+			BalanceAfter:   inv.Quantity,
+			OperatorID:     req.OperatorID,
+			Remark:         req.Remark,
+		})
+	})
+}
+
+func (s *stockService) Transfer(ctx context.Context, req *TransferRequest) error {
+	return s.repo.Transaction(ctx, func(tx repository.StockRepository) error {
+		// 1. Outbound from source
+		sourceInv, err := tx.GetInventoryForUpdate(ctx, req.MaterialID, req.FromLocation)
+		if err != nil {
+			return fmt.Errorf("source inventory not found: %w", err)
+		}
+		if sourceInv.Quantity < req.Quantity {
+			return errors.New("insufficient stock in source location")
+		}
+		sourceInv.Quantity -= req.Quantity
+		tx.UpsertInventory(ctx, sourceInv)
+
+		// 2. Inbound to target
+		targetInv, err := tx.GetInventoryForUpdate(ctx, req.MaterialID, req.ToLocation)
+		if err != nil {
+			targetInv = &model.Inventory{
+				MaterialID:        req.MaterialID,
+				WarehouseLocation: req.ToLocation,
+				Quantity:          0,
+			}
+		}
+		targetInv.Quantity += req.Quantity
+		tx.UpsertInventory(ctx, targetInv)
+
+		// 3. Logs
+		tx.CreateStockLog(ctx, &model.StockLog{
+			MaterialID:     req.MaterialID,
+			InventoryID:    sourceInv.ID,
+			Type:           model.LogTypeTransfer,
+			QuantityChange: -req.Quantity,
+			BalanceAfter:   sourceInv.Quantity,
+			OperatorID:     req.OperatorID,
+			Remark:         fmt.Sprintf("Transfer to %s: %s", req.ToLocation, req.Remark),
+		})
+
+		return tx.CreateStockLog(ctx, &model.StockLog{
+			MaterialID:     req.MaterialID,
+			InventoryID:    targetInv.ID,
+			Type:           model.LogTypeTransfer,
+			QuantityChange: req.Quantity,
+			BalanceAfter:   targetInv.Quantity,
+			OperatorID:     req.OperatorID,
+			Remark:         fmt.Sprintf("Transfer from %s: %s", req.FromLocation, req.Remark),
+		})
+	})
+}
+
+func (s *stockService) ListInventory(ctx context.Context, page, pageSize int) ([]*model.Inventory, int64, error) {
+	offset := (page - 1) * pageSize
+	return s.repo.ListInventory(ctx, offset, pageSize)
+}
+
+func (s *stockService) GetInventoryStats(ctx context.Context) ([]map[string]interface{}, error) {
+	return s.repo.GetInventoryStats(ctx)
+}
+
+// triggerStockAlert 库存预警 Hook
+func (s *stockService) triggerStockAlert(inv *model.Inventory) {
+	// 实际应用中可发送至消息队列 (MQ) 或通过钉钉/邮件通知
+	fmt.Printf("ALERT: Stock for material %d in location %s is low: %d (Threshold: %d)\n",
+		inv.MaterialID, inv.WarehouseLocation, inv.Quantity, inv.StockAlertThreshold)
+}
