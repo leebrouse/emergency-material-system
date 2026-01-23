@@ -1,0 +1,11 @@
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates libc6-compat wget
+
+WORKDIR /root/emergency-material-system/backend/internal/dispatch
+COPY dispatch .
+
+VOLUME [/root/emergency-material-system/backend/internal/common/config]
+
+EXPOSE 8083 9093
+
+CMD ["./dispatch"]

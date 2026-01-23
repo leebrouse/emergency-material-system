@@ -1,13 +1,77 @@
 services:
+  # Auth Service (认证服务)
+  auth:
+    build:
+      context: ../internal/auth
+      dockerfile: dockerfile
+    container_name: auth
+    ports:
+      - "8081:8081" # REST API
+      - "9091:9091" # gRPC
+    networks:
+      - emergency
+    restart: unless-stopped
+    volumes:
+       - ../internal/common/config:/root/emergency-material-system/backend/internal/common/config  
 
-  # DataBase:
-  # Mysql
-  # Influxdb
+  # Stock Service (物资库存服务)
+  stock:
+    build:
+      context: ../internal/stock
+      dockerfile: dockerfile
+    container_name: stock
+    ports:
+      - "8082:8082" # REST API
+      - "9092:9092" # gRPC
+    networks:
+      - emergency
+    restart: unless-stopped
+    volumes:
+       - ../internal/common/config:/root/emergency-material-system/backend/internal/common/config  
 
-  # Observability:
-  # Jaeger for tracing
-  # Elasticsearch for logging
-  # Prometheus for metrics
+  # Dispatch Service (调度服务)
+  dispatch:
+    build:
+      context: ../internal/dispatch
+      dockerfile: dockerfile
+    container_name: dispatch
+    ports:
+      - "8083:8083" # REST API
+      - "9093:9093" # gRPC
+    networks:
+      - emergency
+    restart: unless-stopped
+    volumes:
+       - ../internal/common/config:/root/emergency-material-system/backend/internal/common/config  
 
-  # DashBoard:
-  # Grafana
+  # Statistics Service (统计服务)
+  statistics:
+    build:
+      context: ../internal/statistics
+      dockerfile: dockerfile
+    container_name: statistics
+    ports:
+      - "8084:8084" # REST API
+    networks:
+      - emergency
+    restart: unless-stopped
+    volumes:
+       - ../internal/common/config:/root/emergency-material-system/backend/internal/common/config
+
+  # Logistics Service (物流服务)
+  logistics:
+    build:
+      context: ../internal/logistics
+      dockerfile: dockerfile
+    container_name: logistics
+    ports:
+      - "8085:8085" # REST API
+    networks:
+      - emergency
+    restart: unless-stopped
+    volumes:
+       - ../internal/common/config:/root/emergency-material-system/backend/internal/common/config   
+
+networks:
+  emergency:
+    driver: bridge
