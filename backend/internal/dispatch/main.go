@@ -8,84 +8,113 @@ import (
 
 	_ "github.com/emergency-material-system/backend/internal/common/config"
 	"github.com/emergency-material-system/backend/internal/common/genopenapi/dispatch"
+	"github.com/emergency-material-system/backend/internal/common/genproto/stock"
 	"github.com/emergency-material-system/backend/internal/dispatch/handler"
+	"github.com/emergency-material-system/backend/internal/dispatch/model"
+	"github.com/emergency-material-system/backend/internal/dispatch/repository"
 	"github.com/emergency-material-system/backend/internal/dispatch/rpc"
 	"github.com/emergency-material-system/backend/internal/dispatch/service"
 	"github.com/spf13/viper"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 func main() {
 	fmt.Println("Starting dispatch service...")
 
-	// 暂时使用mock服务，不连接数据库
-	dispatchService := service.NewDispatchService()
+	// 1. DB Init
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		viper.GetString("services.dispatch.mysql.user"),
+		viper.GetString("services.dispatch.mysql.password"),
+		viper.GetString("services.dispatch.mysql.host"),
+		viper.GetString("services.dispatch.mysql.port"),
+		viper.GetString("services.dispatch.mysql.database"),
+	)
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		fmt.Printf("Failed to connect to MySQL: %v\n", err)
+		os.Exit(1)
+	}
+	db.AutoMigrate(&model.DemandRequest{}, &model.DispatchTask{}, &model.DispatchLog{})
 
-	// 初始化处理器
+	// 2. gRPC Client Init (Stock Service)
+	stockHost := viper.GetString("services.stock.host")
+	if stockHost == "" {
+		stockHost = "stock"
+	}
+	stockPort := viper.GetString("services.stock.grpc")
+	if stockPort == "" {
+		stockPort = "9092"
+	}
+	stockConn, err := grpc.NewClient(fmt.Sprintf("%s:%s", stockHost, stockPort),
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		fmt.Printf("Failed to connect to stock service: %v\n", err)
+		os.Exit(1)
+	}
+	stockClient := stock.NewStockServiceClient(stockConn)
+
+	// 3. Service & Handler Init
+	dispatchRepo := repository.NewDispatchRepository(db)
+	dispatchService := service.NewDispatchService(dispatchRepo, stockClient)
 	dispatchHandler := handler.NewDispatchHandler(dispatchService)
 
-	// 初始化gRPC服务
+	// 4. gRPC Server Init (Dispatch Service)
 	dispatchRPCServer := rpc.NewDispatchRPCServer(dispatchService)
 
-	// 启动gRPC服务器 (端口9093)
 	go startGRPCServer(dispatchRPCServer)
-
-	// 启动REST API服务器 (端口8083)
 	startRESTServer(dispatchHandler)
-
-	fmt.Println("Shutting down dispatch service...")
 }
 
-// startGRPCServer 启动gRPC服务器
 func startGRPCServer(server *rpc.DispatchRPCServer) {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", viper.GetString("services.dispatch.grpc")))
+	port := viper.GetString("services.dispatch.grpc")
+	if port == "" {
+		port = "9093"
+	}
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
 		fmt.Printf("Failed to listen for gRPC: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	grpcServer := grpc.NewServer()
-
-	// 注册服务
 	server.Register(grpcServer)
 	reflection.Register(grpcServer)
 
-	fmt.Println("gRPC server starting on port ", viper.GetString("services.dispatch.grpc"))
+	fmt.Println("gRPC server starting on port ", port)
 	if err := grpcServer.Serve(lis); err != nil {
 		fmt.Printf("Failed to serve gRPC: %v\n", err)
-		os.Exit(1)
 	}
 }
 
-// startRESTServer 启动REST API服务器
-func startRESTServer(handler *handler.DispatchHandler) {
-	// 创建Gin引擎
+// REST API Server
+func startRESTServer(h *handler.DispatchHandler) {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
-	// 中间件
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 
-	// 健康检查
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "dispatch"})
 	})
 
-	// API路由组
-	// 使用生成的路由注册器
 	api := r.Group("/api/v1")
 	{
-		// 使用生成的 RegisterHandlers 自动注册所有路由
-		dispatch.RegisterHandlers(api, handler)
+		dispatch.RegisterHandlers(api, h)
 	}
 
-	fmt.Println("REST API server starting on port ", viper.GetString("services.dispatch.rest"))
-	if err := r.Run(":" + viper.GetString("services.dispatch.rest")); err != nil {
+	port := viper.GetString("services.dispatch.rest")
+	if port == "" {
+		port = "8083"
+	}
+	fmt.Println("REST API server starting on port ", port)
+	if err := r.Run(":" + port); err != nil {
 		fmt.Printf("Failed to start REST server: %v\n", err)
-		os.Exit(1)
 	}
 }

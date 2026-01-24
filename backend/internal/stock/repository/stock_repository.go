@@ -28,6 +28,10 @@ type StockRepository interface {
 	CreateStockLog(ctx context.Context, log *model.StockLog) error
 	ListStockLogs(ctx context.Context, materialID uint, offset, limit int) ([]*model.StockLog, int64, error)
 
+	// Dispatch Support
+	ListInventoryByMaterial(ctx context.Context, materialID uint) ([]*model.Inventory, error)
+	GetInventoryByIDForUpdate(ctx context.Context, id uint) (*model.Inventory, error)
+
 	// Transaction support
 	Transaction(ctx context.Context, fn func(repo StockRepository) error) error
 	WithTx(tx *gorm.DB) StockRepository
@@ -128,4 +132,16 @@ func (r *stockRepository) ListStockLogs(ctx context.Context, materialID uint, of
 	db.Count(&total)
 	err := db.Order("id desc").Offset(offset).Limit(limit).Find(&list).Error
 	return list, total, err
+}
+
+func (r *stockRepository) ListInventoryByMaterial(ctx context.Context, materialID uint) ([]*model.Inventory, error) {
+	var list []*model.Inventory
+	err := r.db.WithContext(ctx).Preload("Material").Where("material_id = ?", materialID).Order("updated_at asc").Find(&list).Error
+	return list, err
+}
+
+func (r *stockRepository) GetInventoryByIDForUpdate(ctx context.Context, id uint) (*model.Inventory, error) {
+	var inv model.Inventory
+	err := r.db.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).First(&inv, id).Error
+	return &inv, err
 }

@@ -19,12 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	StockService_ListMaterials_FullMethodName   = "/stock.StockService/ListMaterials"
-	StockService_GetMaterial_FullMethodName     = "/stock.StockService/GetMaterial"
-	StockService_CreateMaterial_FullMethodName  = "/stock.StockService/CreateMaterial"
-	StockService_UpdateMaterial_FullMethodName  = "/stock.StockService/UpdateMaterial"
-	StockService_GetInventory_FullMethodName    = "/stock.StockService/GetInventory"
-	StockService_UpdateInventory_FullMethodName = "/stock.StockService/UpdateInventory"
+	StockService_ListMaterials_FullMethodName      = "/stock.StockService/ListMaterials"
+	StockService_GetMaterial_FullMethodName        = "/stock.StockService/GetMaterial"
+	StockService_CreateMaterial_FullMethodName     = "/stock.StockService/CreateMaterial"
+	StockService_UpdateMaterial_FullMethodName     = "/stock.StockService/UpdateMaterial"
+	StockService_GetInventory_FullMethodName       = "/stock.StockService/GetInventory"
+	StockService_ListInventoryItems_FullMethodName = "/stock.StockService/ListInventoryItems"
+	StockService_UpdateInventory_FullMethodName    = "/stock.StockService/UpdateInventory"
+	StockService_LockStock_FullMethodName          = "/stock.StockService/LockStock"
 )
 
 // StockServiceClient is the client API for StockService service.
@@ -39,10 +41,14 @@ type StockServiceClient interface {
 	CreateMaterial(ctx context.Context, in *CreateMaterialRequest, opts ...grpc.CallOption) (*CreateMaterialResponse, error)
 	// 更新物资
 	UpdateMaterial(ctx context.Context, in *UpdateMaterialRequest, opts ...grpc.CallOption) (*UpdateMaterialResponse, error)
-	// 获取库存信息
+	// 获取库存信息 (单个汇总)
 	GetInventory(ctx context.Context, in *GetInventoryRequest, opts ...grpc.CallOption) (*GetInventoryResponse, error)
+	// 获取明细库存列表 (支持批次、库位)
+	ListInventoryItems(ctx context.Context, in *ListInventoryItemsRequest, opts ...grpc.CallOption) (*ListInventoryItemsResponse, error)
 	// 更新库存
 	UpdateInventory(ctx context.Context, in *UpdateInventoryRequest, opts ...grpc.CallOption) (*UpdateInventoryResponse, error)
+	// 批量锁定库存 (原子操作)
+	LockStock(ctx context.Context, in *LockStockRequest, opts ...grpc.CallOption) (*LockStockResponse, error)
 }
 
 type stockServiceClient struct {
@@ -98,9 +104,27 @@ func (c *stockServiceClient) GetInventory(ctx context.Context, in *GetInventoryR
 	return out, nil
 }
 
+func (c *stockServiceClient) ListInventoryItems(ctx context.Context, in *ListInventoryItemsRequest, opts ...grpc.CallOption) (*ListInventoryItemsResponse, error) {
+	out := new(ListInventoryItemsResponse)
+	err := c.cc.Invoke(ctx, StockService_ListInventoryItems_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *stockServiceClient) UpdateInventory(ctx context.Context, in *UpdateInventoryRequest, opts ...grpc.CallOption) (*UpdateInventoryResponse, error) {
 	out := new(UpdateInventoryResponse)
 	err := c.cc.Invoke(ctx, StockService_UpdateInventory_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *stockServiceClient) LockStock(ctx context.Context, in *LockStockRequest, opts ...grpc.CallOption) (*LockStockResponse, error) {
+	out := new(LockStockResponse)
+	err := c.cc.Invoke(ctx, StockService_LockStock_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -119,10 +143,14 @@ type StockServiceServer interface {
 	CreateMaterial(context.Context, *CreateMaterialRequest) (*CreateMaterialResponse, error)
 	// 更新物资
 	UpdateMaterial(context.Context, *UpdateMaterialRequest) (*UpdateMaterialResponse, error)
-	// 获取库存信息
+	// 获取库存信息 (单个汇总)
 	GetInventory(context.Context, *GetInventoryRequest) (*GetInventoryResponse, error)
+	// 获取明细库存列表 (支持批次、库位)
+	ListInventoryItems(context.Context, *ListInventoryItemsRequest) (*ListInventoryItemsResponse, error)
 	// 更新库存
 	UpdateInventory(context.Context, *UpdateInventoryRequest) (*UpdateInventoryResponse, error)
+	// 批量锁定库存 (原子操作)
+	LockStock(context.Context, *LockStockRequest) (*LockStockResponse, error)
 }
 
 // UnimplementedStockServiceServer should be embedded to have forward compatible implementations.
@@ -144,8 +172,14 @@ func (UnimplementedStockServiceServer) UpdateMaterial(context.Context, *UpdateMa
 func (UnimplementedStockServiceServer) GetInventory(context.Context, *GetInventoryRequest) (*GetInventoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInventory not implemented")
 }
+func (UnimplementedStockServiceServer) ListInventoryItems(context.Context, *ListInventoryItemsRequest) (*ListInventoryItemsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListInventoryItems not implemented")
+}
 func (UnimplementedStockServiceServer) UpdateInventory(context.Context, *UpdateInventoryRequest) (*UpdateInventoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateInventory not implemented")
+}
+func (UnimplementedStockServiceServer) LockStock(context.Context, *LockStockRequest) (*LockStockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LockStock not implemented")
 }
 
 // UnsafeStockServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -249,6 +283,24 @@ func _StockService_GetInventory_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StockService_ListInventoryItems_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListInventoryItemsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StockServiceServer).ListInventoryItems(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StockService_ListInventoryItems_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StockServiceServer).ListInventoryItems(ctx, req.(*ListInventoryItemsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _StockService_UpdateInventory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateInventoryRequest)
 	if err := dec(in); err != nil {
@@ -263,6 +315,24 @@ func _StockService_UpdateInventory_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StockServiceServer).UpdateInventory(ctx, req.(*UpdateInventoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StockService_LockStock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LockStockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StockServiceServer).LockStock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StockService_LockStock_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StockServiceServer).LockStock(ctx, req.(*LockStockRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -295,8 +365,16 @@ var StockService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _StockService_GetInventory_Handler,
 		},
 		{
+			MethodName: "ListInventoryItems",
+			Handler:    _StockService_ListInventoryItems_Handler,
+		},
+		{
 			MethodName: "UpdateInventory",
 			Handler:    _StockService_UpdateInventory_Handler,
+		},
+		{
+			MethodName: "LockStock",
+			Handler:    _StockService_LockStock_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

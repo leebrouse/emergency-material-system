@@ -6,27 +6,36 @@ services:
   stock:
     rest: "8082"
     grpc: "9092"
-
+    host: "127.0.0.1"
+    mysql:
+      host: "127.0.0.1"
+      # host: "mysql"
+      port: "3307"
+      user: "root"
+      password: "123456"
+      database: "stock"
+    
   dispatch:
     rest: "8083"
     grpc: "9093"
-
+    host: "127.0.0.1"
+    mysql:
+      host: "127.0.0.1"
+      # host: "mysql"
+      port: "3307"
+      user: "root"
+      password: "123456"
+      database: "dispatch"
+  
+  # statistics service only has REST API
   statistics:
     rest: "8084"
-    # statistics service only has REST API
     grpc: ""  
 
+  # logistics service only has REST API
   logistics:
     rest: "8085"
-    # logistics service only has REST API
     grpc: ""  
 
-# db configurations
-db:
-  mysql:
-    host: "localhost"
-    # host: "mysql"
-    port: "3307"
-    user: "root"
-    password: "123456"
-    database: "stock"
+
+

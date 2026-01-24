@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/emergency-material-system/backend/internal/common/genproto/stock"
 	"github.com/emergency-material-system/backend/internal/stock/service"
@@ -30,12 +31,11 @@ func (s *StockRPCServer) Register(server *grpc.Server) {
 
 // ListMaterials 获取物资列表
 func (s *StockRPCServer) ListMaterials(ctx context.Context, req *stock.ListMaterialsRequest) (*stock.ListMaterialsResponse, error) {
-	materials, total, err := s.stockService.ListMaterials(ctx, int(req.Page), int(req.PageSize), "")
+	materials, total, err := s.stockService.ListMaterials(ctx, int(req.Page), int(req.PageSize), req.Keyword)
 	if err != nil {
 		return nil, err
 	}
 
-	// 转换数据格式
 	var materialProtos []*stock.Material
 	for _, m := range materials {
 		materialProtos = append(materialProtos, &stock.Material{
@@ -44,6 +44,8 @@ func (s *StockRPCServer) ListMaterials(ctx context.Context, req *stock.ListMater
 			Description: m.Description,
 			Category:    m.Category,
 			Unit:        m.Unit,
+			CreatedAt:   m.CreatedAt.Unix(),
+			UpdatedAt:   m.UpdatedAt.Unix(),
 		})
 	}
 
@@ -67,32 +69,87 @@ func (s *StockRPCServer) GetMaterial(ctx context.Context, req *stock.GetMaterial
 			Description: material.Description,
 			Category:    material.Category,
 			Unit:        material.Unit,
+			CreatedAt:   material.CreatedAt.Unix(),
+			UpdatedAt:   material.UpdatedAt.Unix(),
 		},
 	}, nil
 }
 
-// CreateMaterial 创建物资
-func (s *StockRPCServer) CreateMaterial(ctx context.Context, req *stock.CreateMaterialRequest) (*stock.CreateMaterialResponse, error) {
-	// 暂时返回未实现
-	return nil, fmt.Errorf("not implemented")
-}
-
-// GetInventory 获取库存信息
+// GetInventory 获取单个汇总库存
 func (s *StockRPCServer) GetInventory(ctx context.Context, req *stock.GetInventoryRequest) (*stock.GetInventoryResponse, error) {
-	// 暂时返回空的库存信息
+	// 汇总逻辑
+	items, err := s.stockService.ListInventoryByMaterial(ctx, uint(req.MaterialId))
+	if err != nil {
+		return nil, err
+	}
+
+	var totalQty, lockedQty int64
+	for _, item := range items {
+		totalQty += item.Quantity
+		lockedQty += item.LockedQuantity
+	}
+
 	return &stock.GetInventoryResponse{
 		Inventory: &stock.Inventory{
-			Id:               1,
-			MaterialId:       1,
-			Quantity:         1000,
-			ReservedQuantity: 0,
-			UpdatedAt:        0,
+			MaterialId:       req.MaterialId,
+			Quantity:         totalQty,
+			ReservedQuantity: lockedQty,
+			UpdatedAt:        time.Now().Unix(),
 		},
 	}, nil
 }
 
-// UpdateInventory 更新库存
+// ListInventoryItems 获取明细库存
+func (s *StockRPCServer) ListInventoryItems(ctx context.Context, req *stock.ListInventoryItemsRequest) (*stock.ListInventoryItemsResponse, error) {
+	items, err := s.stockService.ListInventoryByMaterial(ctx, uint(req.MaterialId))
+	if err != nil {
+		return nil, err
+	}
+
+	var protos []*stock.InventoryItem
+	for _, item := range items {
+		expiry := int64(0)
+		if item.Material.ExpiryDate != nil {
+			expiry = item.Material.ExpiryDate.Unix()
+		}
+		protos = append(protos, &stock.InventoryItem{
+			Id:             int64(item.ID),
+			MaterialId:     int64(item.MaterialID),
+			Location:       item.WarehouseLocation,
+			Quantity:       item.Quantity,
+			LockedQuantity: item.LockedQuantity,
+			BatchNum:       item.Material.BatchNumber,
+			ExpiryDate:     expiry,
+		})
+	}
+
+	return &stock.ListInventoryItemsResponse{Items: protos}, nil
+}
+
+// LockStock 锁定库存
+func (s *StockRPCServer) LockStock(ctx context.Context, req *stock.LockStockRequest) (*stock.LockStockResponse, error) {
+	lockItems := make(map[uint]int64)
+	for _, item := range req.Items {
+		lockItems[uint(item.InventoryId)] = item.Quantity
+	}
+
+	err := s.stockService.LockStock(ctx, uint(req.RequestId), lockItems)
+	if err != nil {
+		return &stock.LockStockResponse{Success: false, Message: err.Error()}, nil
+	}
+
+	return &stock.LockStockResponse{Success: true}, nil
+}
+
+// Unimplemented methods
+func (s *StockRPCServer) CreateMaterial(ctx context.Context, req *stock.CreateMaterialRequest) (*stock.CreateMaterialResponse, error) {
+	return nil, fmt.Errorf("not implemented via gRPC")
+}
+
+func (s *StockRPCServer) UpdateMaterial(ctx context.Context, req *stock.UpdateMaterialRequest) (*stock.UpdateMaterialResponse, error) {
+	return nil, fmt.Errorf("not implemented via gRPC")
+}
+
 func (s *StockRPCServer) UpdateInventory(ctx context.Context, req *stock.UpdateInventoryRequest) (*stock.UpdateInventoryResponse, error) {
-	// 暂时返回未实现
-	return nil, fmt.Errorf("not implemented")
+	return nil, fmt.Errorf("not implemented via gRPC")
 }

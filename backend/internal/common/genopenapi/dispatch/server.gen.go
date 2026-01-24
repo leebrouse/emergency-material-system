@@ -19,12 +19,21 @@ type ServerInterface interface {
 	// 创建需求申报
 	// (POST /dispatch/requests)
 	PostDispatchRequests(c *gin.Context)
-	// 获取需求申报详情
+	// 获取需求单详情
 	// (GET /dispatch/requests/{id})
 	GetDispatchRequestsId(c *gin.Context, id int)
-	// 更新需求申报状态
-	// (PUT /dispatch/requests/{id})
-	PutDispatchRequestsId(c *gin.Context, id int)
+	// 获取智能分配建议
+	// (GET /dispatch/requests/{id}/allocation-suggestion)
+	GetDispatchRequestsIdAllocationSuggestion(c *gin.Context, id int)
+	// 审核需求单
+	// (POST /dispatch/requests/{id}/audit)
+	PostDispatchRequestsIdAudit(c *gin.Context, id int)
+	// 获取配送任务列表
+	// (GET /dispatch/tasks)
+	GetDispatchTasks(c *gin.Context)
+	// 创建配送任务 (原子化执行分配与锁库)
+	// (POST /dispatch/tasks)
+	PostDispatchTasks(c *gin.Context)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -57,6 +66,14 @@ func (siw *ServerInterfaceWrapper) GetDispatchRequests(c *gin.Context) {
 	err = runtime.BindQueryParameter("form", true, false, "page_size", c.Request.URL.Query(), &params.PageSize)
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page_size: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", c.Request.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -107,8 +124,8 @@ func (siw *ServerInterfaceWrapper) GetDispatchRequestsId(c *gin.Context) {
 	siw.Handler.GetDispatchRequestsId(c, id)
 }
 
-// PutDispatchRequestsId operation middleware
-func (siw *ServerInterfaceWrapper) PutDispatchRequestsId(c *gin.Context) {
+// GetDispatchRequestsIdAllocationSuggestion operation middleware
+func (siw *ServerInterfaceWrapper) GetDispatchRequestsIdAllocationSuggestion(c *gin.Context) {
 
 	var err error
 
@@ -128,7 +145,57 @@ func (siw *ServerInterfaceWrapper) PutDispatchRequestsId(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.PutDispatchRequestsId(c, id)
+	siw.Handler.GetDispatchRequestsIdAllocationSuggestion(c, id)
+}
+
+// PostDispatchRequestsIdAudit operation middleware
+func (siw *ServerInterfaceWrapper) PostDispatchRequestsIdAudit(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int
+
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDispatchRequestsIdAudit(c, id)
+}
+
+// GetDispatchTasks operation middleware
+func (siw *ServerInterfaceWrapper) GetDispatchTasks(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDispatchTasks(c)
+}
+
+// PostDispatchTasks operation middleware
+func (siw *ServerInterfaceWrapper) PostDispatchTasks(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDispatchTasks(c)
 }
 
 // GinServerOptions provides options for the Gin server.
@@ -161,5 +228,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/dispatch/requests", wrapper.GetDispatchRequests)
 	router.POST(options.BaseURL+"/dispatch/requests", wrapper.PostDispatchRequests)
 	router.GET(options.BaseURL+"/dispatch/requests/:id", wrapper.GetDispatchRequestsId)
-	router.PUT(options.BaseURL+"/dispatch/requests/:id", wrapper.PutDispatchRequestsId)
+	router.GET(options.BaseURL+"/dispatch/requests/:id/allocation-suggestion", wrapper.GetDispatchRequestsIdAllocationSuggestion)
+	router.POST(options.BaseURL+"/dispatch/requests/:id/audit", wrapper.PostDispatchRequestsIdAudit)
+	router.GET(options.BaseURL+"/dispatch/tasks", wrapper.GetDispatchTasks)
+	router.POST(options.BaseURL+"/dispatch/tasks", wrapper.PostDispatchTasks)
 }

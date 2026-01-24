@@ -18,11 +18,17 @@ service StockService {
   // 更新物资
   rpc UpdateMaterial(UpdateMaterialRequest) returns (UpdateMaterialResponse);
   
-  // 获取库存信息
+  // 获取库存信息 (单个汇总)
   rpc GetInventory(GetInventoryRequest) returns (GetInventoryResponse);
+
+  // 获取明细库存列表 (支持批次、库位)
+  rpc ListInventoryItems(ListInventoryItemsRequest) returns (ListInventoryItemsResponse);
   
   // 更新库存
   rpc UpdateInventory(UpdateInventoryRequest) returns (UpdateInventoryResponse);
+
+  // 批量锁定库存 (原子操作)
+  rpc LockStock(LockStockRequest) returns (LockStockResponse);
 }
 
 message ListMaterialsRequest {
@@ -75,6 +81,14 @@ message GetInventoryResponse {
   Inventory inventory = 1;
 }
 
+message ListInventoryItemsRequest {
+  int64 material_id = 1;
+}
+
+message ListInventoryItemsResponse {
+  repeated InventoryItem items = 1;
+}
+
 message UpdateInventoryRequest {
   int64 material_id = 1;
   int64 quantity = 2;
@@ -83,6 +97,21 @@ message UpdateInventoryRequest {
 
 message UpdateInventoryResponse {
   Inventory inventory = 1;
+}
+
+message LockStockRequest {
+  int64 request_id = 1;
+  repeated StockLockItem items = 2;
+}
+
+message StockLockItem {
+  int64 inventory_id = 1;
+  int64 quantity = 2;
+}
+
+message LockStockResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message Material {
@@ -103,3 +132,12 @@ message Inventory {
   int64 updated_at = 5;
 }
 
+message InventoryItem {
+  int64 id = 1;
+  int64 material_id = 2;
+  string location = 3;
+  int64 quantity = 4;
+  int64 locked_quantity = 5;
+  string batch_num = 6;
+  int64 expiry_date = 7; // Unix timestamp
+}

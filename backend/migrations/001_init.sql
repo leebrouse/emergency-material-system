@@ -1,0 +1,2 @@
+CREATE DATABASE stock;
+CREATE DATABASE dispatch;

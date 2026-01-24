@@ -49,7 +49,9 @@ type StockService interface {
 
 	// Inventory & Stats
 	ListInventory(ctx context.Context, page, pageSize int) ([]*model.Inventory, int64, error)
+	ListInventoryByMaterial(ctx context.Context, materialID uint) ([]*model.Inventory, error)
 	GetInventoryStats(ctx context.Context) ([]map[string]interface{}, error)
+	LockStock(ctx context.Context, requestID uint, items map[uint]int64) error
 }
 
 type stockService struct {
@@ -189,8 +191,42 @@ func (s *stockService) ListInventory(ctx context.Context, page, pageSize int) ([
 	return s.repo.ListInventory(ctx, offset, pageSize)
 }
 
+func (s *stockService) ListInventoryByMaterial(ctx context.Context, materialID uint) ([]*model.Inventory, error) {
+	return s.repo.ListInventoryByMaterial(ctx, materialID)
+}
+
 func (s *stockService) GetInventoryStats(ctx context.Context) ([]map[string]interface{}, error) {
 	return s.repo.GetInventoryStats(ctx)
+}
+
+func (s *stockService) LockStock(ctx context.Context, requestID uint, items map[uint]int64) error {
+	return s.repo.Transaction(ctx, func(tx repository.StockRepository) error {
+		for invID, qty := range items {
+			inv, err := tx.GetInventoryByIDForUpdate(ctx, invID)
+			if err != nil {
+				return err
+			}
+			if inv.Quantity < qty {
+				return fmt.Errorf("insufficient stock for inventory %d", invID)
+			}
+			inv.Quantity -= qty
+			inv.LockedQuantity += qty
+			if err := tx.UpsertInventory(ctx, inv); err != nil {
+				return err
+			}
+
+			// Log
+			tx.CreateStockLog(ctx, &model.StockLog{
+				MaterialID:     inv.MaterialID,
+				InventoryID:    inv.ID,
+				Type:           "Lock",
+				QuantityChange: -qty,
+				BalanceAfter:   inv.Quantity,
+				Remark:         fmt.Sprintf("Lock for Request #%d", requestID),
+			})
+		}
+		return nil
+	})
 }
 
 // triggerStockAlert 库存预警 Hook

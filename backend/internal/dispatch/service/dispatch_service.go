@@ -6,44 +6,26 @@ import (
 	"github.com/emergency-material-system/backend/internal/dispatch/model"
 )
 
-// DispatchService 调度服务接口
+type AllocationSuggestion struct {
+	InventoryID uint   `json:"inventory_id"`
+	Location    string `json:"location"`
+	BatchNum    string `json:"batch_num"`
+	Quantity    int64  `json:"quantity"`
+}
+
 type DispatchService interface {
-	ListRequests(ctx context.Context, page, pageSize int) ([]*model.Request, int64, error)
-	GetRequest(ctx context.Context, id uint) (*model.Request, error)
-	CreateRequest(ctx context.Context, req interface{}) (*model.Request, error)
-	UpdateRequestStatus(ctx context.Context, id uint, req interface{}) error
-}
+	// Demand Request Management
+	CreateDemandRequest(ctx context.Context, req *model.DemandRequest) error
+	GetDemandRequest(ctx context.Context, id uint) (*model.DemandRequest, error)
+	ListDemandRequests(ctx context.Context, page, pageSize int, status string) ([]*model.DemandRequest, int64, error)
 
-// dispatchService 调度服务实现
-type dispatchService struct{}
+	// Audit & Workflow
+	AuditDemandRequest(ctx context.Context, id uint, action string, remark string) error
 
-// NewDispatchService 创建调度服务
-func NewDispatchService() DispatchService {
-	return &dispatchService{}
-}
+	// Intelligent Allocation
+	SuggestAllocation(ctx context.Context, requestID uint) ([]AllocationSuggestion, error)
 
-// ListRequests 获取需求申报列表
-func (s *dispatchService) ListRequests(ctx context.Context, page, pageSize int) ([]*model.Request, int64, error) {
-	return nil, 0, nil
-}
-
-// GetRequest 获取需求申报详情
-func (s *dispatchService) GetRequest(ctx context.Context, id uint) (*model.Request, error) {
-	return nil, nil
-}
-
-// CreateRequest 创建需求申报
-func (s *dispatchService) CreateRequest(ctx context.Context, req interface{}) (*model.Request, error) {
-	// 1.调 grpc stock service
-
-	// 2. 满足则创建，不然erro
-
-	// 模拟创建需求申报
-	return nil, nil
-}
-
-// UpdateRequestStatus 更新需求申报状态
-func (s *dispatchService) UpdateRequestStatus(ctx context.Context, id uint, req interface{}) error {
-	// 模拟更新
-	return nil
+	// Dispatch Execution
+	CreateDispatchTask(ctx context.Context, requestID uint, allocations []AllocationSuggestion) (uint, error)
+	ListDispatchTasks(ctx context.Context, page, pageSize int) ([]*model.DispatchTask, int64, error)
 }

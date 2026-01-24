@@ -27,11 +27,11 @@ func main() {
 
 	// 数据库 DSN 配置
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		viper.GetString("db.mysql.user"),
-		viper.GetString("db.mysql.password"),
-		viper.GetString("db.mysql.host"),
-		viper.GetString("db.mysql.port"),
-		viper.GetString("db.mysql.database"),
+		viper.GetString("services.stock.mysql.user"),
+		viper.GetString("services.stock.mysql.password"),
+		viper.GetString("services.stock.mysql.host"),
+		viper.GetString("services.stock.mysql.port"),
+		viper.GetString("services.stock.mysql.database"),
 	)
 
 	// 初始化数据库 (MySQL)

@@ -100,10 +100,21 @@ type ClientInterface interface {
 	// GetDispatchRequestsId request
 	GetDispatchRequestsId(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PutDispatchRequestsIdWithBody request with any body
-	PutDispatchRequestsIdWithBody(ctx context.Context, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetDispatchRequestsIdAllocationSuggestion request
+	GetDispatchRequestsIdAllocationSuggestion(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PutDispatchRequestsId(ctx context.Context, id int, body PutDispatchRequestsIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PostDispatchRequestsIdAuditWithBody request with any body
+	PostDispatchRequestsIdAuditWithBody(ctx context.Context, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostDispatchRequestsIdAudit(ctx context.Context, id int, body PostDispatchRequestsIdAuditJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetDispatchTasks request
+	GetDispatchTasks(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostDispatchTasksWithBody request with any body
+	PostDispatchTasksWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostDispatchTasks(ctx context.Context, body PostDispatchTasksJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) GetDispatchRequests(ctx context.Context, params *GetDispatchRequestsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -154,8 +165,8 @@ func (c *Client) GetDispatchRequestsId(ctx context.Context, id int, reqEditors .
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutDispatchRequestsIdWithBody(ctx context.Context, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutDispatchRequestsIdRequestWithBody(c.Server, id, contentType, body)
+func (c *Client) GetDispatchRequestsIdAllocationSuggestion(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDispatchRequestsIdAllocationSuggestionRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +177,56 @@ func (c *Client) PutDispatchRequestsIdWithBody(ctx context.Context, id int, cont
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutDispatchRequestsId(ctx context.Context, id int, body PutDispatchRequestsIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutDispatchRequestsIdRequest(c.Server, id, body)
+func (c *Client) PostDispatchRequestsIdAuditWithBody(ctx context.Context, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostDispatchRequestsIdAuditRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostDispatchRequestsIdAudit(ctx context.Context, id int, body PostDispatchRequestsIdAuditJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostDispatchRequestsIdAuditRequest(c.Server, id, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetDispatchTasks(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDispatchTasksRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostDispatchTasksWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostDispatchTasksRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostDispatchTasks(ctx context.Context, body PostDispatchTasksJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostDispatchTasksRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -219,6 +278,22 @@ func NewGetDispatchRequestsRequest(server string, params *GetDispatchRequestsPar
 		if params.PageSize != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page_size", runtime.ParamLocationQuery, *params.PageSize); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Status != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "status", runtime.ParamLocationQuery, *params.Status); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -317,19 +392,8 @@ func NewGetDispatchRequestsIdRequest(server string, id int) (*http.Request, erro
 	return req, nil
 }
 
-// NewPutDispatchRequestsIdRequest calls the generic PutDispatchRequestsId builder with application/json body
-func NewPutDispatchRequestsIdRequest(server string, id int, body PutDispatchRequestsIdJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewPutDispatchRequestsIdRequestWithBody(server, id, "application/json", bodyReader)
-}
-
-// NewPutDispatchRequestsIdRequestWithBody generates requests for PutDispatchRequestsId with any type of body
-func NewPutDispatchRequestsIdRequestWithBody(server string, id int, contentType string, body io.Reader) (*http.Request, error) {
+// NewGetDispatchRequestsIdAllocationSuggestionRequest generates requests for GetDispatchRequestsIdAllocationSuggestion
+func NewGetDispatchRequestsIdAllocationSuggestionRequest(server string, id int) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -344,7 +408,7 @@ func NewPutDispatchRequestsIdRequestWithBody(server string, id int, contentType 
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/dispatch/requests/%s", pathParam0)
+	operationPath := fmt.Sprintf("/dispatch/requests/%s/allocation-suggestion", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -354,7 +418,119 @@ func NewPutDispatchRequestsIdRequestWithBody(server string, id int, contentType 
 		return nil, err
 	}
 
-	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostDispatchRequestsIdAuditRequest calls the generic PostDispatchRequestsIdAudit builder with application/json body
+func NewPostDispatchRequestsIdAuditRequest(server string, id int, body PostDispatchRequestsIdAuditJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostDispatchRequestsIdAuditRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewPostDispatchRequestsIdAuditRequestWithBody generates requests for PostDispatchRequestsIdAudit with any type of body
+func NewPostDispatchRequestsIdAuditRequestWithBody(server string, id int, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dispatch/requests/%s/audit", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetDispatchTasksRequest generates requests for GetDispatchTasks
+func NewGetDispatchTasksRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dispatch/tasks")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostDispatchTasksRequest calls the generic PostDispatchTasks builder with application/json body
+func NewPostDispatchTasksRequest(server string, body PostDispatchTasksJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostDispatchTasksRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostDispatchTasksRequestWithBody generates requests for PostDispatchTasks with any type of body
+func NewPostDispatchTasksRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dispatch/tasks")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -418,27 +594,26 @@ type ClientWithResponsesInterface interface {
 	// GetDispatchRequestsIdWithResponse request
 	GetDispatchRequestsIdWithResponse(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*GetDispatchRequestsIdResponse, error)
 
-	// PutDispatchRequestsIdWithBodyWithResponse request with any body
-	PutDispatchRequestsIdWithBodyWithResponse(ctx context.Context, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutDispatchRequestsIdResponse, error)
+	// GetDispatchRequestsIdAllocationSuggestionWithResponse request
+	GetDispatchRequestsIdAllocationSuggestionWithResponse(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*GetDispatchRequestsIdAllocationSuggestionResponse, error)
 
-	PutDispatchRequestsIdWithResponse(ctx context.Context, id int, body PutDispatchRequestsIdJSONRequestBody, reqEditors ...RequestEditorFn) (*PutDispatchRequestsIdResponse, error)
+	// PostDispatchRequestsIdAuditWithBodyWithResponse request with any body
+	PostDispatchRequestsIdAuditWithBodyWithResponse(ctx context.Context, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostDispatchRequestsIdAuditResponse, error)
+
+	PostDispatchRequestsIdAuditWithResponse(ctx context.Context, id int, body PostDispatchRequestsIdAuditJSONRequestBody, reqEditors ...RequestEditorFn) (*PostDispatchRequestsIdAuditResponse, error)
+
+	// GetDispatchTasksWithResponse request
+	GetDispatchTasksWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetDispatchTasksResponse, error)
+
+	// PostDispatchTasksWithBodyWithResponse request with any body
+	PostDispatchTasksWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostDispatchTasksResponse, error)
+
+	PostDispatchTasksWithResponse(ctx context.Context, body PostDispatchTasksJSONRequestBody, reqEditors ...RequestEditorFn) (*PostDispatchTasksResponse, error)
 }
 
 type GetDispatchRequestsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *struct {
-		// Page 当前页码
-		Page *int `json:"page,omitempty"`
-
-		// PageSize 每页记录数
-		PageSize *int       `json:"page_size,omitempty"`
-		Requests *[]Request `json:"requests,omitempty"`
-
-		// Total 总记录数
-		Total *int `json:"total,omitempty"`
-	}
-	JSON500 *Error
 }
 
 // Status returns HTTPResponse.Status
@@ -460,9 +635,6 @@ func (r GetDispatchRequestsResponse) StatusCode() int {
 type PostDispatchRequestsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON201      *Request
-	JSON400      *Error
-	JSON500      *Error
 }
 
 // Status returns HTTPResponse.Status
@@ -484,9 +656,6 @@ func (r PostDispatchRequestsResponse) StatusCode() int {
 type GetDispatchRequestsIdResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *Request
-	JSON400      *Error
-	JSON404      *Error
 }
 
 // Status returns HTTPResponse.Status
@@ -505,19 +674,13 @@ func (r GetDispatchRequestsIdResponse) StatusCode() int {
 	return 0
 }
 
-type PutDispatchRequestsIdResponse struct {
+type GetDispatchRequestsIdAllocationSuggestionResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *struct {
-		Message *string `json:"message,omitempty"`
-	}
-	JSON400 *Error
-	JSON404 *Error
-	JSON500 *Error
 }
 
 // Status returns HTTPResponse.Status
-func (r PutDispatchRequestsIdResponse) Status() string {
+func (r GetDispatchRequestsIdAllocationSuggestionResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -525,7 +688,70 @@ func (r PutDispatchRequestsIdResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PutDispatchRequestsIdResponse) StatusCode() int {
+func (r GetDispatchRequestsIdAllocationSuggestionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostDispatchRequestsIdAuditResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r PostDispatchRequestsIdAuditResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostDispatchRequestsIdAuditResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetDispatchTasksResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDispatchTasksResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDispatchTasksResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostDispatchTasksResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r PostDispatchTasksResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostDispatchTasksResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -567,21 +793,56 @@ func (c *ClientWithResponses) GetDispatchRequestsIdWithResponse(ctx context.Cont
 	return ParseGetDispatchRequestsIdResponse(rsp)
 }
 
-// PutDispatchRequestsIdWithBodyWithResponse request with arbitrary body returning *PutDispatchRequestsIdResponse
-func (c *ClientWithResponses) PutDispatchRequestsIdWithBodyWithResponse(ctx context.Context, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutDispatchRequestsIdResponse, error) {
-	rsp, err := c.PutDispatchRequestsIdWithBody(ctx, id, contentType, body, reqEditors...)
+// GetDispatchRequestsIdAllocationSuggestionWithResponse request returning *GetDispatchRequestsIdAllocationSuggestionResponse
+func (c *ClientWithResponses) GetDispatchRequestsIdAllocationSuggestionWithResponse(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*GetDispatchRequestsIdAllocationSuggestionResponse, error) {
+	rsp, err := c.GetDispatchRequestsIdAllocationSuggestion(ctx, id, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePutDispatchRequestsIdResponse(rsp)
+	return ParseGetDispatchRequestsIdAllocationSuggestionResponse(rsp)
 }
 
-func (c *ClientWithResponses) PutDispatchRequestsIdWithResponse(ctx context.Context, id int, body PutDispatchRequestsIdJSONRequestBody, reqEditors ...RequestEditorFn) (*PutDispatchRequestsIdResponse, error) {
-	rsp, err := c.PutDispatchRequestsId(ctx, id, body, reqEditors...)
+// PostDispatchRequestsIdAuditWithBodyWithResponse request with arbitrary body returning *PostDispatchRequestsIdAuditResponse
+func (c *ClientWithResponses) PostDispatchRequestsIdAuditWithBodyWithResponse(ctx context.Context, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostDispatchRequestsIdAuditResponse, error) {
+	rsp, err := c.PostDispatchRequestsIdAuditWithBody(ctx, id, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePutDispatchRequestsIdResponse(rsp)
+	return ParsePostDispatchRequestsIdAuditResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostDispatchRequestsIdAuditWithResponse(ctx context.Context, id int, body PostDispatchRequestsIdAuditJSONRequestBody, reqEditors ...RequestEditorFn) (*PostDispatchRequestsIdAuditResponse, error) {
+	rsp, err := c.PostDispatchRequestsIdAudit(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostDispatchRequestsIdAuditResponse(rsp)
+}
+
+// GetDispatchTasksWithResponse request returning *GetDispatchTasksResponse
+func (c *ClientWithResponses) GetDispatchTasksWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetDispatchTasksResponse, error) {
+	rsp, err := c.GetDispatchTasks(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDispatchTasksResponse(rsp)
+}
+
+// PostDispatchTasksWithBodyWithResponse request with arbitrary body returning *PostDispatchTasksResponse
+func (c *ClientWithResponses) PostDispatchTasksWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostDispatchTasksResponse, error) {
+	rsp, err := c.PostDispatchTasksWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostDispatchTasksResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostDispatchTasksWithResponse(ctx context.Context, body PostDispatchTasksJSONRequestBody, reqEditors ...RequestEditorFn) (*PostDispatchTasksResponse, error) {
+	rsp, err := c.PostDispatchTasks(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostDispatchTasksResponse(rsp)
 }
 
 // ParseGetDispatchRequestsResponse parses an HTTP response from a GetDispatchRequestsWithResponse call
@@ -595,33 +856,6 @@ func ParseGetDispatchRequestsResponse(rsp *http.Response) (*GetDispatchRequestsR
 	response := &GetDispatchRequestsResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest struct {
-			// Page 当前页码
-			Page *int `json:"page,omitempty"`
-
-			// PageSize 每页记录数
-			PageSize *int       `json:"page_size,omitempty"`
-			Requests *[]Request `json:"requests,omitempty"`
-
-			// Total 总记录数
-			Total *int `json:"total,omitempty"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
 	}
 
 	return response, nil
@@ -640,30 +874,6 @@ func ParsePostDispatchRequestsResponse(rsp *http.Response) (*PostDispatchRequest
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest Request
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON201 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	}
-
 	return response, nil
 }
 
@@ -680,77 +890,68 @@ func ParseGetDispatchRequestsIdResponse(rsp *http.Response) (*GetDispatchRequest
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Request
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
 	return response, nil
 }
 
-// ParsePutDispatchRequestsIdResponse parses an HTTP response from a PutDispatchRequestsIdWithResponse call
-func ParsePutDispatchRequestsIdResponse(rsp *http.Response) (*PutDispatchRequestsIdResponse, error) {
+// ParseGetDispatchRequestsIdAllocationSuggestionResponse parses an HTTP response from a GetDispatchRequestsIdAllocationSuggestionWithResponse call
+func ParseGetDispatchRequestsIdAllocationSuggestionResponse(rsp *http.Response) (*GetDispatchRequestsIdAllocationSuggestionResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &PutDispatchRequestsIdResponse{
+	response := &GetDispatchRequestsIdAllocationSuggestionResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest struct {
-			Message *string `json:"message,omitempty"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	return response, nil
+}
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
+// ParsePostDispatchRequestsIdAuditResponse parses an HTTP response from a PostDispatchRequestsIdAuditWithResponse call
+func ParsePostDispatchRequestsIdAuditResponse(rsp *http.Response) (*PostDispatchRequestsIdAuditResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+	response := &PostDispatchRequestsIdAuditResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+	return response, nil
+}
 
+// ParseGetDispatchTasksResponse parses an HTTP response from a GetDispatchTasksWithResponse call
+func ParseGetDispatchTasksResponse(rsp *http.Response) (*GetDispatchTasksResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDispatchTasksResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParsePostDispatchTasksResponse parses an HTTP response from a PostDispatchTasksWithResponse call
+func ParsePostDispatchTasksResponse(rsp *http.Response) (*PostDispatchTasksResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostDispatchTasksResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
 	}
 
 	return response, nil
