@@ -28,9 +28,36 @@ func (s *DispatchRPCServer) Register(server *grpc.Server) {
 	dispatch.RegisterDispatchServiceServer(server, s)
 }
 
-// Implement mock/stub for GRPC methods to avoid compile errors
+// ListDemands 获取所有需求列表 (用于统计)
 func (s *DispatchRPCServer) ListDemands(ctx context.Context, req *dispatch.ListDemandsRequest) (*dispatch.ListDemandsResponse, error) {
-	return nil, fmt.Errorf("not implemented via gRPC")
+	demands, _, err := s.dispatchService.ListDemandRequests(ctx, 1, 1000, "") // 获取前1000条记录
+	if err != nil {
+		return nil, err
+	}
+
+	var demandProtos []*dispatch.Demand
+	for _, d := range demands {
+		demandProtos = append(demandProtos, &dispatch.Demand{
+			Id:          int64(d.ID),
+			Location:    d.TargetArea,
+			Priority:    string(d.Urgency),
+			Status:      string(d.Status),
+			Description: d.Description,
+			CreatedAt:   d.CreatedAt.Unix(),
+			UpdatedAt:   d.UpdatedAt.Unix(),
+			Items: []*dispatch.DemandItem{
+				{
+					MaterialId: int64(d.MaterialID),
+					Quantity:   d.Quantity,
+				},
+			},
+		})
+	}
+
+	return &dispatch.ListDemandsResponse{
+		Demands: demandProtos,
+		Total:   int32(len(demands)),
+	}, nil
 }
 
 func (s *DispatchRPCServer) CreateDemand(ctx context.Context, req *dispatch.CreateDemandRequest) (*dispatch.CreateDemandResponse, error) {

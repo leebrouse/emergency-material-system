@@ -22,21 +22,30 @@ func NewStatisticsHandler(statisticsService service.StatisticsService) *Statisti
 
 // GetStatisticsReports 获取统计报表 - 实现 ServerInterface
 func (h *StatisticsHandler) GetStatisticsReports(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-	})
+	stats, err := h.statisticsService.GetMaterialStats(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, stats)
 }
 
 // GetStatisticsSummary 获取统计汇总 - 实现 ServerInterface
 func (h *StatisticsHandler) GetStatisticsSummary(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-	})
+	summary, err := h.statisticsService.GetSummary(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, summary)
 }
 
 // GetStatisticsTrends 获取统计趋势 - 实现 ServerInterface
 func (h *StatisticsHandler) GetStatisticsTrends(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-	})
+	trends, err := h.statisticsService.GetRequestStats(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, trends)
 }

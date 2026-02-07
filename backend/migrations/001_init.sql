@@ -1,2 +1,3 @@
 CREATE DATABASE stock;
 CREATE DATABASE dispatch;
+CREATE DATABASE logistics;

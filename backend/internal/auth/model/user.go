@@ -38,6 +38,12 @@ type Role struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+const (
+	RoleAdmin   = "admin"
+	RoleManager = "manager"
+	RoleRescue  = "rescue"
+)
+
 // TableName 指定表名
 func (User) TableName() string {
 	return "users"

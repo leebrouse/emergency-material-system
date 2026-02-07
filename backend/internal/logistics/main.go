@@ -7,8 +7,11 @@ import (
 	"os"
 
 	_ "github.com/emergency-material-system/backend/internal/common/config"
+	"github.com/emergency-material-system/backend/internal/common/database"
 	"github.com/emergency-material-system/backend/internal/common/genopenapi/logistics" // 导入生成的包
 	"github.com/emergency-material-system/backend/internal/logistics/handler"
+	"github.com/emergency-material-system/backend/internal/logistics/model"
+	"github.com/emergency-material-system/backend/internal/logistics/repository"
 	"github.com/emergency-material-system/backend/internal/logistics/rpc"
 	"github.com/emergency-material-system/backend/internal/logistics/service"
 	"github.com/spf13/viper"
@@ -21,8 +24,18 @@ import (
 func main() {
 	fmt.Println("Starting logistics service...")
 
-	// 暂时使用mock服务，不连接数据库
-	logisticsService := service.NewLogisticsService()
+	// 初始化数据库 (MySQL) 并自动迁移
+	db := database.MustInitMySQL(
+		"services.logistics.mysql",
+		&model.Tracking{},
+		&model.TrackingNode{},
+	)
+
+	// 初始化仓库
+	trackingRepo := repository.NewTrackingRepository(db)
+
+	// 初始化服务
+	logisticsService := service.NewLogisticsService(trackingRepo)
 
 	// 初始化处理器
 	logisticsHandler := handler.NewLogisticsHandler(logisticsService)
@@ -80,6 +93,9 @@ func startRESTServer(handler *handler.LogisticsHandler) {
 	{
 		// 使用生成的 RegisterHandlers 自动注册所有路由
 		logistics.RegisterHandlers(api, handler)
+
+		// 额外手动注册轨迹节点记录接口 (由于 OpenAPI spec 暂未定义)
+		api.POST("/logistics/tracking/:id/nodes", handler.PostTrajectoryNode)
 	}
 
 	fmt.Println("REST API server starting on port ", viper.GetString("services.logistics.rest"))

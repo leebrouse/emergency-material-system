@@ -7,6 +7,7 @@ import (
 	"os"
 
 	_ "github.com/emergency-material-system/backend/internal/common/config"
+	"github.com/emergency-material-system/backend/internal/common/database"
 	"github.com/emergency-material-system/backend/internal/common/genopenapi/dispatch"
 	"github.com/emergency-material-system/backend/internal/common/genproto/stock"
 	"github.com/emergency-material-system/backend/internal/dispatch/handler"
@@ -20,27 +21,18 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
 func main() {
 	fmt.Println("Starting dispatch service...")
 
-	// 1. DB Init
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		viper.GetString("services.dispatch.mysql.user"),
-		viper.GetString("services.dispatch.mysql.password"),
-		viper.GetString("services.dispatch.mysql.host"),
-		viper.GetString("services.dispatch.mysql.port"),
-		viper.GetString("services.dispatch.mysql.database"),
+	// 1. DB Init 并自动迁移
+	db := database.MustInitMySQL(
+		"services.dispatch.mysql",
+		&model.DemandRequest{},
+		&model.DispatchTask{},
+		&model.DispatchLog{},
 	)
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		fmt.Printf("Failed to connect to MySQL: %v\n", err)
-		os.Exit(1)
-	}
-	db.AutoMigrate(&model.DemandRequest{}, &model.DispatchTask{}, &model.DispatchLog{})
 
 	// 2. gRPC Client Init (Stock Service)
 	stockHost := viper.GetString("services.stock.host")

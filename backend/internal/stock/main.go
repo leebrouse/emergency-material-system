@@ -7,6 +7,7 @@ import (
 	"os"
 
 	_ "github.com/emergency-material-system/backend/internal/common/config"
+	"github.com/emergency-material-system/backend/internal/common/database"
 	"github.com/emergency-material-system/backend/internal/common/genopenapi/stock"
 	"github.com/emergency-material-system/backend/internal/stock/handler"
 	"github.com/emergency-material-system/backend/internal/stock/model"
@@ -18,34 +19,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
 func main() {
 	fmt.Println("Starting stock service...")
 
-	// 数据库 DSN 配置
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		viper.GetString("services.stock.mysql.user"),
-		viper.GetString("services.stock.mysql.password"),
-		viper.GetString("services.stock.mysql.host"),
-		viper.GetString("services.stock.mysql.port"),
-		viper.GetString("services.stock.mysql.database"),
+	// 初始化数据库 (MySQL) 并自动迁移
+	db := database.MustInitMySQL(
+		"services.stock.mysql",
+		&model.Material{},
+		&model.Inventory{},
+		&model.StockLog{},
 	)
-
-	// 初始化数据库 (MySQL)
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		fmt.Printf("Failed to connect to MySQL database: %v\n", err)
-		os.Exit(1)
-	}
-
-	// 自动迁移模型
-	err = db.AutoMigrate(&model.Material{}, &model.Inventory{}, &model.StockLog{})
-	if err != nil {
-		fmt.Printf("Failed to auto-migrate: %v\n", err)
-	}
 
 	// 初始化各层
 	stockRepo := repository.NewStockRepository(db)

@@ -30,86 +30,79 @@ func (s *LogisticsRPCServer) Register(server *grpc.Server) {
 
 // GetTracking 获取物流轨迹
 func (s *LogisticsRPCServer) GetTracking(ctx context.Context, req *logistics.GetTrackingRequest) (*logistics.GetTrackingResponse, error) {
-	tracking, err := s.logisticsService.GetTracking(ctx, uint(req.OrderId))
+	tracking, err := s.logisticsService.GetTrajectory(ctx, uint(req.OrderId))
 	if err != nil {
 		return nil, err
 	}
 
-	return &logistics.GetTrackingResponse{
+	res := &logistics.GetTrackingResponse{
 		Tracking: &logistics.Tracking{
 			Id:         int64(tracking.ID),
 			OrderId:    int64(tracking.RequestID),
-			VehicleId:  "VEH001", // 模拟车辆ID
-			DriverInfo: "司机张三",   // 模拟司机信息
+			VehicleId:  "VEH001", // TODO: 从数据库中获取真实的车辆/司机信息
+			DriverInfo: "司机张三",
 			Status:     string(tracking.Status),
-			CurrentLocation: &logistics.TrackingPoint{
-				Id:         int64(tracking.ID),
-				TrackingId: int64(tracking.ID),
-				Latitude:   39.9042, // 模拟位置
-				Longitude:  116.4074,
-				Address:    "北京市朝阳区",
-				Timestamp:  tracking.TrackedAt.Unix(),
-			},
-			CreatedAt: tracking.CreatedAt.Unix(),
-			UpdatedAt: tracking.UpdatedAt.Unix(),
+			CreatedAt:  tracking.CreatedAt.Unix(),
+			UpdatedAt:  tracking.UpdatedAt.Unix(),
 		},
-	}, nil
+	}
+
+	if tracking.CurrentLoc != "" {
+		res.Tracking.CurrentLocation = &logistics.TrackingPoint{
+			Address:   tracking.CurrentLoc,
+			Timestamp: tracking.TrackedAt.Unix(),
+		}
+	}
+
+	return res, nil
 }
 
-// UpdateLocation 更新物流位置
+// UpdateLocation 更新物流位置 (记录轨迹节点)
 func (s *LogisticsRPCServer) UpdateLocation(ctx context.Context, req *logistics.UpdateLocationRequest) (*logistics.UpdateLocationResponse, error) {
-	// 模拟更新位置逻辑
-	// 这里可以调用实际的物流服务来更新位置信息
+	err := s.logisticsService.RecordTrajectoryNode(ctx, uint(req.TrackingId), req.Address, req.Latitude, req.Longitude, "in_transit", "位置更新")
+	if err != nil {
+		return nil, err
+	}
+
+	tracking, err := s.logisticsService.GetTracking(ctx, uint(req.TrackingId))
+	if err != nil {
+		return nil, err
+	}
 
 	return &logistics.UpdateLocationResponse{
 		Tracking: &logistics.Tracking{
-			Id:         req.TrackingId,
-			OrderId:    1, // 模拟订单ID
-			VehicleId:  "VEH001",
-			DriverInfo: "司机张三",
-			Status:     "in_transit",
+			Id:        int64(tracking.ID),
+			OrderId:   int64(tracking.RequestID),
+			Status:    string(tracking.Status),
+			CreatedAt: tracking.CreatedAt.Unix(),
+			UpdatedAt: tracking.UpdatedAt.Unix(),
 			CurrentLocation: &logistics.TrackingPoint{
-				Id:         req.TrackingId,
-				TrackingId: req.TrackingId,
-				Latitude:   req.Latitude,
-				Longitude:  req.Longitude,
-				Address:    req.Address,
-				Timestamp:  time.Now().Unix(),
+				Latitude:  req.Latitude,
+				Longitude: req.Longitude,
+				Address:   req.Address,
+				Timestamp: time.Now().Unix(),
 			},
-			CreatedAt: time.Now().Unix(),
-			UpdatedAt: time.Now().Unix(),
 		},
 	}, nil
 }
 
-// GetTrackingHistory 获取物流历史
+// GetTrackingHistory 获取物流历史轨迹点
 func (s *LogisticsRPCServer) GetTrackingHistory(ctx context.Context, req *logistics.GetTrackingHistoryRequest) (*logistics.GetTrackingHistoryResponse, error) {
-	// 模拟物流历史数据 - 根据订单ID返回轨迹历史
-	points := []*logistics.TrackingPoint{
-		{
-			Id:         1,
-			TrackingId: req.OrderId,
-			Latitude:   39.9042,
-			Longitude:  116.4074,
-			Address:    "北京市朝阳区仓库",
-			Timestamp:  time.Now().Add(-2 * time.Hour).Unix(),
-		},
-		{
-			Id:         2,
-			TrackingId: req.OrderId,
-			Latitude:   39.9142,
-			Longitude:  116.4174,
-			Address:    "北京市海淀区中转站",
-			Timestamp:  time.Now().Add(-1 * time.Hour).Unix(),
-		},
-		{
-			Id:         3,
-			TrackingId: req.OrderId,
-			Latitude:   39.9242,
-			Longitude:  116.4274,
-			Address:    "北京市西城区配送点",
-			Timestamp:  time.Now().Add(-30 * time.Minute).Unix(),
-		},
+	tracking, err := s.logisticsService.GetTrajectory(ctx, uint(req.OrderId))
+	if err != nil {
+		return nil, err
+	}
+
+	points := make([]*logistics.TrackingPoint, 0, len(tracking.Nodes))
+	for _, node := range tracking.Nodes {
+		points = append(points, &logistics.TrackingPoint{
+			Id:         int64(node.ID),
+			TrackingId: int64(node.TrackingID),
+			Latitude:   node.Latitude,
+			Longitude:  node.Longitude,
+			Address:    node.Location,
+			Timestamp:  node.TrackedAt.Unix(),
+		})
 	}
 
 	return &logistics.GetTrackingHistoryResponse{
