@@ -6,7 +6,6 @@ import (
 	"os"
 
 	_ "github.com/emergency-material-system/backend/internal/common/config"
-	"github.com/emergency-material-system/backend/internal/common/database"
 	"github.com/emergency-material-system/backend/internal/common/genopenapi/statistics"
 	"github.com/emergency-material-system/backend/internal/common/genproto/dispatch"
 	"github.com/emergency-material-system/backend/internal/common/genproto/stock"
@@ -22,7 +21,7 @@ func main() {
 	fmt.Println("Starting statistics service...")
 
 	// 1. DB Init (虽目前由于聚合可能暂无自建表，但为架构统一和后续扩展初始化)
-	database.MustInitMySQL("services.statistics.mysql")
+	// database.MustInitMySQL("services.statistics.mysql")
 
 	// 2. gRPC Client Init (Stock Service)
 	stockHost := viper.GetString("services.stock.host")

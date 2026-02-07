@@ -123,10 +123,7 @@ func (s *dispatchService) SuggestAllocation(ctx context.Context, requestID uint)
 			continue
 		}
 
-		take := available
-		if take > remaining {
-			take = remaining
-		}
+		take := min(available, remaining)
 
 		suggestions = append(suggestions, AllocationSuggestion{
 			InventoryID: uint(item.Id),
@@ -171,8 +168,11 @@ func (s *dispatchService) CreateDispatchTask(ctx context.Context, requestID uint
 			RequestId: int64(requestID),
 			Items:     lockItems,
 		})
-		if err != nil || !lockResp.Success {
-			return fmt.Errorf("failed to lock stock: %v", err)
+		if err != nil {
+			return fmt.Errorf("failed to call lock stock gRPC: %w", err)
+		}
+		if !lockResp.Success {
+			return fmt.Errorf("stock lock failed: %s", lockResp.Message)
 		}
 
 		// 2. Create Dispatch Task

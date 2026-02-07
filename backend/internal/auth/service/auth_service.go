@@ -55,6 +55,7 @@ func (s *authService) Login(ctx context.Context, username, password string) (tok
 	}
 
 	// 验证密码
+	// has bug 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		return "", "", 0, errors.New("invalid credentials")

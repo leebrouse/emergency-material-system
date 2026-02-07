@@ -99,3 +99,10 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/auth/logout", wrapper.PostAuthLogout)
 	router.POST(options.BaseURL+"/auth/refresh", wrapper.PostAuthRefresh)
 }
+
+// curl -X POST http://auth:8081/api/v1/auth/login \
+//   -H "Content-Type: application/json" \
+//   -d '{
+//     "username": "admin",
+//     "password": "admin123456"
+//   }'

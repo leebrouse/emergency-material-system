@@ -1,13 +1,16 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/emergency-material-system/backend/internal/common/genopenapi/dispatch"
 	"github.com/emergency-material-system/backend/internal/dispatch/model"
 	"github.com/emergency-material-system/backend/internal/dispatch/service"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type DispatchHandler struct {
@@ -26,16 +29,22 @@ func (h *DispatchHandler) PostDispatchRequests(c *gin.Context) {
 		return
 	}
 
+	// 防止nil pointer
+	desc := ""
+	if body.Description != nil {
+		desc = *body.Description
+	}
+
 	req := &model.DemandRequest{
 		MaterialID:  uint(body.MaterialId),
 		Quantity:    int64(body.Quantity),
 		Urgency:     model.UrgencyLevel(body.UrgencyLevel),
 		TargetArea:  body.TargetArea,
-		Description: *body.Description,
+		Description: desc,
 	}
 
 	if err := h.svc.CreateDemandRequest(c.Request.Context(), req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create demand request: " + err.Error()})
 		return
 	}
 
@@ -93,7 +102,11 @@ func (h *DispatchHandler) PostDispatchRequestsIdAudit(c *gin.Context, id int) {
 	}
 
 	if err := h.svc.AuditDemandRequest(c.Request.Context(), uint(id), string(body.Action), remark); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "demand request not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to audit request: " + err.Error()})
 		return
 	}
 
@@ -118,6 +131,15 @@ func (h *DispatchHandler) PostDispatchTasks(c *gin.Context) {
 		return
 	}
 
+	if body.RequestId <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request_id"})
+		return
+	}
+	if len(body.Allocations) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "allocations cannot be empty"})
+		return
+	}
+
 	allocations := make([]service.AllocationSuggestion, len(body.Allocations))
 	for i, a := range body.Allocations {
 		allocations[i] = service.AllocationSuggestion{
@@ -128,7 +150,15 @@ func (h *DispatchHandler) PostDispatchTasks(c *gin.Context) {
 
 	taskID, err := h.svc.CreateDispatchTask(c.Request.Context(), uint(body.RequestId), allocations)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "demand request not found"})
+			return
+		}
+		if strings.Contains(err.Error(), "must be approved") || strings.Contains(err.Error(), "stock lock failed") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create dispatch task: " + err.Error()})
 		return
 	}
 
