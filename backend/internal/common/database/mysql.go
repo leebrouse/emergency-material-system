@@ -2,16 +2,18 @@ package database
 
 import (
 	"fmt"
+	"log"
 	"os"
 
+	_ "github.com/emergency-material-system/backend/internal/common/config"
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
-// InitMySQL 从 viper 配置中初始化 MySQL 数据库并自动迁移模型
+// initMySQL 从 viper 配置中初始化 MySQL 数据库并自动迁移模型
 // configPrefix 指定在 viper 中的配置前缀，例如 "services.logistics.mysql"
-func InitMySQL(configPrefix string, models ...interface{}) (*gorm.DB, error) {
+func initMySQL(configPrefix string, models ...interface{}) (*gorm.DB, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		viper.GetString(configPrefix+".user"),
 		viper.GetString(configPrefix+".password"),
@@ -19,6 +21,8 @@ func InitMySQL(configPrefix string, models ...interface{}) (*gorm.DB, error) {
 		viper.GetString(configPrefix+".port"),
 		viper.GetString(configPrefix+".database"),
 	)
+
+	log.Println("DSN: ", dsn)
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -37,9 +41,9 @@ func InitMySQL(configPrefix string, models ...interface{}) (*gorm.DB, error) {
 	return db, nil
 }
 
-// MustInitMySQL 初始化 MySQL，如果失败则直接退出程序
+// Connect 初始化 MySQL，如果失败则直接退出程序
 func MustInitMySQL(configPrefix string, models ...interface{}) *gorm.DB {
-	db, err := InitMySQL(configPrefix, models...)
+	db, err := initMySQL(configPrefix, models...)
 	if err != nil {
 		os.Exit(1)
 	}

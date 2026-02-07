@@ -83,7 +83,6 @@ services:
     restart: unless-stopped
     environment:
       - MYSQL_ROOT_PASSWORD=123456
-      - MYSQL_DATABASE=stock
     volumes:
       - ./data/mysql:/var/lib/mysql
 

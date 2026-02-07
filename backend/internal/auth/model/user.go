@@ -9,11 +9,11 @@ import (
 // User 用户模型
 type User struct {
 	ID        uint           `gorm:"primarykey" json:"id"`
-	Username  string         `gorm:"uniqueIndex;not null" json:"username"`
-	Password  string         `gorm:"not null" json:"-"` // 密码不返回给前端
-	Email     string         `gorm:"uniqueIndex" json:"email"`
-	Phone     string         `json:"phone"`
-	Status    UserStatus     `gorm:"default:active" json:"status"`
+	Username  string         `gorm:"size:191;uniqueIndex;not null" json:"username"`
+	Password  string         `gorm:"size:255;not null" json:"-"` // 密码不返回给前端
+	Email     string         `gorm:"size:191;uniqueIndex" json:"email"`
+	Phone     string         `gorm:"size:20" json:"phone"`
+	Status    UserStatus     `gorm:"size:20;default:active" json:"status"`
 	Roles     []Role         `gorm:"many2many:user_roles;" json:"roles"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
@@ -32,8 +32,8 @@ const (
 // Role 角色模型
 type Role struct {
 	ID          uint      `gorm:"primarykey" json:"id"`
-	Name        string    `gorm:"uniqueIndex;not null" json:"name"`
-	Description string    `json:"description"`
+	Name        string    `gorm:"size:191;uniqueIndex;not null" json:"name"`
+	Description string    `gorm:"size:255" json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

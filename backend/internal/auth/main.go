@@ -66,15 +66,15 @@ func seedData(repo repository.AuthRepository, svc service.AuthService) {
 	}
 
 	// 创建初始管理员
-	adminUsername := "admin"
-	_, err := repo.GetUserByUsername(ctx, adminUsername)
-	if err != nil {
-		fmt.Println("Seeding admin user...")
-		err = svc.Register(ctx, adminUsername, "admin123", "admin@emergency.com", "13800000000", []string{model.RoleAdmin})
-		if err != nil {
-			fmt.Printf("Failed to seed admin user: %v\n", err)
-		}
-	}
+	// adminUsername := "admin"
+	// _, err := repo.GetUserByUsername(ctx, adminUsername)
+	// if err != nil {
+	// 	fmt.Println("Seeding admin user...")
+	// 	err = svc.Register(ctx, adminUsername, "admin123", "admin@emergency.com", "13800000000", []string{model.RoleAdmin})
+	// 	if err != nil {
+	// 		fmt.Printf("Failed to seed admin user: %v\n", err)
+	// 	}
+	// }
 }
 
 func startGRPCServer(server *rpc.AuthRPCServer) {
