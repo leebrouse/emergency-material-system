@@ -5,7 +5,7 @@ data/
 backend/go.work
 backend/go.work.sum
 
-frontend/frontend-app/node_modules
-frontend/frontend-app/coverage
-frontend/frontend-app/dist
-frontend/frontend-app/.tmp
+frontend/app/node_modules
+frontend/app/coverage
+frontend/app/dist
+frontend/app/.tmp
