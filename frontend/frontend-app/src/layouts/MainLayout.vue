@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useInventoryStore } from '@/stores/inventory'
-import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
@@ -14,10 +13,10 @@ const isMobileMenuOpen = ref(false)
 const menuItems = computed(() => {
   const role = userStore.role
   const items = [
-    { title: 'Dashboard', path: '/dashboard', icon: 'House', roles: ['admin', 'warehouse', 'rescue'] },
-    { title: 'Inventory', path: '/inventory', icon: 'Box', roles: ['admin', 'warehouse'] }, 
-    { title: 'Dispatch', path: '/dispatch', icon: 'Van', roles: ['admin', 'rescue'] },
-    { title: 'Logistics', path: '/logistics', icon: 'MapLocation', roles: ['admin', 'rescue', 'warehouse'] }, 
+    { title: '控制台', path: '/dashboard', icon: 'House', roles: ['admin', 'warehouse', 'rescue'] },
+    { title: '物资管理', path: '/inventory', icon: 'Box', roles: ['admin', 'warehouse'] }, 
+    { title: '调度指挥', path: '/dispatch', icon: 'Van', roles: ['admin', 'rescue'] },
+    { title: '物流追踪', path: '/logistics', icon: 'MapLocation', roles: ['admin', 'rescue', 'warehouse'] }, 
   ]
   return items.filter(item => item.roles.includes(role || 'admin'))
 })
@@ -28,6 +27,16 @@ const handleLogout = () => {
 }
 
 const alertCount = computed(() => inventoryStore.alertCount)
+
+const getPageTitle = (name: string) => {
+    const titles: { [key: string]: string } = {
+        'dashboard': '控制台',
+        'inventory': '物资管理',
+        'dispatch': '调度指挥',
+        'logistics': '物流追踪'
+    }
+    return titles[name] || name?.toUpperCase()
+}
 </script>
 
 <template>
@@ -35,7 +44,7 @@ const alertCount = computed(() => inventoryStore.alertCount)
     <!-- Sidebar (Desktop) -->
     <aside class="bg-gray-900 text-white row-span-2 hidden md:flex flex-col border-r border-gray-800">
       <div class="h-[60px] flex items-center justify-center border-b border-gray-800">
-        <h1 class="text-xl font-bold text-emerald-500 tracking-wider">EMS CORE</h1>
+        <h1 class="text-xl font-bold text-emerald-500 tracking-wider">应急物资系统</h1>
       </div>
       
       <nav class="flex-1 p-4 space-y-2">
@@ -59,9 +68,11 @@ const alertCount = computed(() => inventoryStore.alertCount)
                 {{ userStore.role?.[0].toUpperCase() }}
             </div>
             <div class="overflow-hidden">
-                <p class="text-sm font-medium text-white truncate">{{ userStore.role || 'User' }}</p>
+                <p class="text-sm font-medium text-white truncate">
+                    {{ userStore.role === 'admin' ? '系统管理员' : (userStore.role === 'warehouse' ? '仓库管理员' : '救援指挥员') }}
+                </p>
                 <button @click="handleLogout" class="text-xs text-gray-400 hover:text-emerald-400 transition-colors flex items-center mt-1">
-                    <el-icon class="mr-1"><SwitchButton /></el-icon> Logout
+                    <el-icon class="mr-1"><SwitchButton /></el-icon> 退出登录
                 </button>
             </div>
         </div>
@@ -72,7 +83,7 @@ const alertCount = computed(() => inventoryStore.alertCount)
     <el-drawer v-model="isMobileMenuOpen" direction="ltr" size="70%" :with-header="false">
         <div class="bg-gray-900 h-full text-white p-4 flex flex-col">
             <div class="h-[60px] flex items-center justify-center border-b border-gray-800 mb-4">
-                <h1 class="text-xl font-bold text-emerald-500">EMS MOBILE</h1>
+                <h1 class="text-xl font-bold text-emerald-500">应急物资系统</h1>
             </div>
              <nav class="flex-1 space-y-2">
                 <router-link 
@@ -87,7 +98,7 @@ const alertCount = computed(() => inventoryStore.alertCount)
                 {{ item.title }}
                 </router-link>
             </nav>
-            <button @click="handleLogout" class="mt-auto w-full py-3 bg-gray-800 rounded text-center">Logout</button>
+            <button @click="handleLogout" class="mt-auto w-full py-3 bg-gray-800 rounded text-center">退出登录</button>
         </div>
     </el-drawer>
 
@@ -97,12 +108,12 @@ const alertCount = computed(() => inventoryStore.alertCount)
           <button @click="isMobileMenuOpen = true" class="md:hidden mr-4 text-gray-600">
               <el-icon :size="24"><Menu /></el-icon>
           </button>
-          <h2 class="text-lg font-bold text-gray-800 tracking-tight">{{ route.name?.toString().toUpperCase() }}</h2>
+          <h2 class="text-lg font-bold text-gray-800 tracking-tight">{{ getPageTitle(route.name as string) }}</h2>
       </div>
       
       <div class="flex items-center space-x-6">
         <!-- Alert Component -->
-        <el-popover placement="bottom" title="Notifications" :width="300" trigger="click">
+        <el-popover placement="bottom" title="系统通知" :width="300" trigger="click">
             <template #reference>
                  <div class="relative cursor-pointer group">
                     <el-icon :size="24" class="text-gray-500 group-hover:text-emerald-600 transition-colors"><Bell /></el-icon>
@@ -112,13 +123,13 @@ const alertCount = computed(() => inventoryStore.alertCount)
                 </div>
             </template>
             <div class="space-y-2">
-                <p v-if="alertCount === 0" class="text-gray-500 text-sm">No new notifications.</p>
+                <p v-if="alertCount === 0" class="text-gray-500 text-sm">暂无新通知</p>
                 <template v-else>
                      <div v-for="item in inventoryStore.criticalItems" :key="item.id" class="p-2 bg-red-50 rounded border border-red-100 flex items-start">
                         <el-icon class="text-red-500 mt-1 mr-2"><Warning /></el-icon>
                         <div>
-                            <p class="text-xs font-bold text-red-800">Low Stock Alert</p>
-                            <p class="text-xs text-gray-600">{{ item.name }} is at critical level ({{ item.quantity }} left)</p>
+                            <p class="text-xs font-bold text-red-800">库存预警</p>
+                            <p class="text-xs text-gray-600">{{ item.name }} 库存告急 (剩余 {{ item.quantity }})</p>
                         </div>
                     </div>
                 </template>

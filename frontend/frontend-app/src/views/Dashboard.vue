@@ -11,7 +11,7 @@ const pieChartRef = ref<HTMLElement | null>(null)
 
 // Computed Stats for Cards
 const totalStockQuantity = computed(() => {
-    return inventoryStore.materials.reduce((acc, curr) => acc + curr.quantity, 0)
+    return inventoryStore.materials.reduce((acc, curr) => acc + (curr.quantity || 0), 0)
 })
 
 const activeDispatchesCount = computed(() => {
@@ -43,18 +43,18 @@ const initCharts = () => {
 const updateLineChart = () => {
     if (!lineChart) return
     lineChart.setOption({
-        title: { text: 'Stock Usage (Weekly)', left: 'left' },
+        title: { text: '物资消耗趋势（近一周）', left: 'left', textStyle: { fontSize: 14 } },
         tooltip: { trigger: 'axis' },
         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
         xAxis: {
             type: 'category',
-            data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
             axisLine: { lineStyle: { color: '#9CA3AF' } }
         },
         yAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed' } } },
         series: [
             {
-                data: [150, 230, 224, 218, 135, 147, 260], // This would be fetched from usage history
+                data: [150, 230, 224, 218, 135, 147, 260],
                 type: 'line',
                 smooth: true,
                 showSymbol: false,
@@ -76,18 +76,18 @@ const updatePieChart = () => {
     // Group materials by category
     const categoryMap: { [key: string]: number } = {}
     inventoryStore.materials.forEach(m => {
-        categoryMap[m.category] = (categoryMap[m.category] || 0) + m.quantity
+        categoryMap[m.category] = (categoryMap[m.category] || 0) + (m.quantity || 0)
     })
 
     const pieData = Object.entries(categoryMap).map(([name, value]) => ({ name, value }))
 
     pieChart.setOption({
-        title: { text: 'Stock by Category', left: 'center' },
+        title: { text: '库存分类占比', left: 'center', textStyle: { fontSize: 14 } },
         tooltip: { trigger: 'item' },
         legend: { bottom: '5%', left: 'center' },
         series: [
             {
-                name: 'Quantity',
+                name: '数量',
                 type: 'pie',
                 radius: ['40%', '70%'],
                 avoidLabelOverlap: false,
@@ -98,7 +98,7 @@ const updatePieChart = () => {
                 },
                 label: { show: false, position: 'center' },
                 emphasis: {
-                    label: { show: true, fontSize: '20', fontWeight: 'bold' }
+                    label: { show: true, fontSize: '18', fontWeight: 'bold' }
                 },
                 data: pieData
             }
@@ -107,12 +107,14 @@ const updatePieChart = () => {
 }
 
 onMounted(() => {
-    initCharts()
+    inventoryStore.fetchMaterials()
+    dispatchStore.fetchDemands()
+    setTimeout(initCharts, 100) // Slight delay to ensure DOM is ready
 })
 
 // React to store changes
 watchEffect(() => {
-    if (inventoryStore.materials) {
+    if (inventoryStore.materials.length > 0) {
         updatePieChart()
     }
 })
@@ -120,15 +122,12 @@ watchEffect(() => {
 
 <template>
     <div class="h-full w-full">
-        <h1 class="text-2xl font-bold mb-6 text-gray-800">Operational Dashboard</h1>
+        <h1 class="text-2xl font-bold mb-6 text-gray-800">运营概览</h1>
         
         <!-- Summary Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group">
-                <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <!-- Icon placeholder -->
-                </div>
-                <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wider">Total Stock Units</h3>
+                <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wider">库存总量</h3>
                 <p class="text-3xl font-bold text-gray-900 mt-2">{{ totalStockQuantity.toLocaleString() }}</p>
                 <div class="w-full bg-gray-100 rounded-full h-1.5 mt-4">
                      <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 70%"></div>
@@ -136,21 +135,21 @@ watchEffect(() => {
             </div>
 
              <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wider">Pending Requests</h3>
+                <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wider">待审批需求</h3>
                 <p class="text-3xl font-bold text-yellow-600 mt-2">{{ pendingRequestsCount }}</p>
-                <span class="text-gray-400 text-xs font-semibold">Awaiting Approval</span>
+                <span class="text-gray-400 text-xs font-semibold">等待审核</span>
             </div>
 
              <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wider">Active Dispatches</h3>
+                <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wider">运输中任务</h3>
                 <p class="text-3xl font-bold text-blue-600 mt-2">{{ activeDispatchesCount }}</p>
-                <span class="text-blue-500 text-xs font-semibold animate-pulse">● Live Tracking</span>
+                <span class="text-blue-500 text-xs font-semibold animate-pulse">● 实时追踪</span>
             </div>
 
              <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wider">Critical Items</h3>
+                <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wider">紧急告警</h3>
                 <p class="text-3xl font-bold text-red-600 mt-2">{{ inventoryStore.criticalItems.length }}</p>
-                <span class="text-red-500 text-xs font-semibold">Immediate Action Required</span>
+                <span class="text-red-500 text-xs font-semibold">需立即处理</span>
             </div>
         </div>
 

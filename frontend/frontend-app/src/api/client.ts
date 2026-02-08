@@ -4,7 +4,7 @@ import { ElMessage } from 'element-plus'
 import router from '@/router'
 
 const apiClient: AxiosInstance = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || '/api',
+    baseURL: import.meta.env.VITE_API_URL || '/api/v1',
     headers: {
         'Content-Type': 'application/json',
     },

@@ -1,5 +1,18 @@
 {
     "files": [],
+    "compilerOptions": {
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "target": "ESNext",
+        "lib": [
+            "ESNext",
+            "DOM",
+            "DOM.Iterable"
+        ],
+        "types": [
+            "vite/client"
+        ]
+    },
     "references": [
         {
             "path": "./tsconfig.app.json"

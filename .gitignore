@@ -4,3 +4,8 @@ data/
 # Go Workspace 文件（本地开发配置，不应提交）
 backend/go.work
 backend/go.work.sum
+
+frontend/frontend-app/node_modules
+frontend/frontend-app/coverage
+frontend/frontend-app/dist
+frontend/frontend-app/.tmp
