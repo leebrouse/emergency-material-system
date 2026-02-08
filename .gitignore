@@ -5,3 +5,5 @@
 backend/go.work
 backend/go.work.sum
 backend/deploy/data
+
+frontend/
