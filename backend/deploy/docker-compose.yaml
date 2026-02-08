@@ -12,7 +12,7 @@ services:
     depends_on:
       - mysql
     volumes:
-      - ../internal/common/config:/root/emergency-material-system/backend/internal/common/config
+      - /root/emergency-material-system/backend/internal/common/config:/root/emergency-material-system/backend/internal/common/config
 
   # Stock Service (物资库存服务)
   stock:
