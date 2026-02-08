@@ -44,18 +44,24 @@ const router = createRouter({
     ]
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _, next) => {
     const userStore = useUserStore()
     const publicPages = ['/login']
     const authRequired = !publicPages.includes(to.path)
 
-    if (authRequired && !userStore.token) {
+    // Safety check: if pinia isn't updated yet, try localStorage
+    const currentToken = userStore.token || localStorage.getItem('token')
+
+    console.log(`[Router] Navigating to: ${to.path}, Auth Required: ${authRequired}, Token Present: ${!!currentToken}`)
+
+    if (authRequired && !currentToken) {
+        console.warn('[Router] No token found, redirecting to login')
         return next({ name: 'login' })
     }
 
     // Role Base Access Control
-    if (userStore.role) {
-        // Define restricted routes map
+    const currentRole = userStore.role || localStorage.getItem('role')
+    if (currentRole) {
         const restrictedRoutes: { [key: string]: string[] } = {
             'inventory': ['admin', 'warehouse'],
             'dispatch': ['admin', 'rescue'],
@@ -63,9 +69,11 @@ router.beforeEach((to, from, next) => {
         }
 
         const routeName = to.name as string
-        if (restrictedRoutes[routeName] && !restrictedRoutes[routeName].includes(userStore.role)) {
-            // Redirect to authorized default page or error
-            return next({ name: 'dashboard' }) // Dashboard is accessible to all roles in our logic
+        if (restrictedRoutes[routeName] && !restrictedRoutes[routeName].includes(currentRole)) {
+            console.warn(`Role ${currentRole} unauthorized for ${routeName}, redirecting...`)
+            if (to.name !== 'dashboard') {
+                return next({ name: 'dashboard' })
+            }
         }
     }
 
