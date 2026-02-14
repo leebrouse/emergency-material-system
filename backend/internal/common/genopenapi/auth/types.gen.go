@@ -5,8 +5,8 @@ package auth
 
 // PostAuthLoginJSONBody defines parameters for PostAuthLogin.
 type PostAuthLoginJSONBody struct {
-	Password *string `json:"password,omitempty"`
-	Username *string `json:"username,omitempty"`
+	Password *string `json:"password" binding:"required"`
+	Username *string `json:"username" binding:"required"`
 }
 
 // PostAuthRefreshJSONBody defines parameters for PostAuthRefresh.
@@ -15,8 +15,20 @@ type PostAuthRefreshJSONBody struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+// PostAuthRegisterJSONBody defines parameters for PostAuthRegister.
+type PostAuthRegisterJSONBody struct {
+	Email    string   `json:"email"`
+	Password *string  `json:"password" binding:"required"`
+	Phone    string   `json:"phone"`
+	Roles    []string `json:"roles"`
+	Username *string  `json:"username" binding:"required"`
+}
+
 // PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
 type PostAuthLoginJSONRequestBody PostAuthLoginJSONBody
 
 // PostAuthRefreshJSONRequestBody defines body for PostAuthRefresh for application/json ContentType.
 type PostAuthRefreshJSONRequestBody PostAuthRefreshJSONBody
+
+// PostAuthRegisterJSONRequestBody defines body for PostAuthRegister for application/json ContentType.
+type PostAuthRegisterJSONRequestBody PostAuthRegisterJSONBody

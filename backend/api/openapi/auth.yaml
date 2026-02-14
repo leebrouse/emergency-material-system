@@ -5,6 +5,51 @@ info:
   description: 认证与权限服务 API
 
 paths:
+  /auth/register:
+    post:
+      summary: 用户注册
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+                - email
+                - phone
+                - roles
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                email:
+                  type: string
+                phone:
+                  type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  message:
+                    type: string
+        '400':
+          description: 参数错误
+
   /auth/login:
     post:
       summary: 用户登录

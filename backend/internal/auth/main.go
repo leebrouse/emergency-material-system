@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,6 +15,7 @@ import (
 	"github.com/emergency-material-system/backend/internal/common/database"
 	"github.com/emergency-material-system/backend/internal/common/genopenapi/auth"
 	"github.com/spf13/viper"
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
@@ -34,11 +34,11 @@ func main() {
 
 	// 2. 初始化各层
 	authRepo := repository.NewAuthRepository(db)
+
+	// 3. 预置角色 (Seed Roles)
+	initRoles(db)
+
 	authService := service.NewAuthService(authRepo)
-
-	// 3. 初始化基础数据 (Roles & Admin)
-	seedData(authRepo, authService)
-
 	authHandler := handler.NewAuthHandler(authService)
 	authRPCServer := rpc.NewAuthRPCServer(authService)
 
@@ -49,30 +49,19 @@ func main() {
 	fmt.Println("Shutting down auth service...")
 }
 
-func seedData(repo repository.AuthRepository, svc service.AuthService) {
-	ctx := context.Background()
-
-	// 创建基础角色
-	roles := []string{model.RoleAdmin, model.RoleManager, model.RoleRescue}
-	for _, roleName := range roles {
-		_, err := repo.GetRoleByName(ctx, roleName)
-		if err != nil {
-			fmt.Printf("Seeding role: %s\n", roleName)
-			repo.CreateRole(ctx, &model.Role{
-				Name:        roleName,
-				Description: fmt.Sprintf("%s role", roleName),
-			})
-		}
+func initRoles(db *gorm.DB) {
+	roles := []model.Role{
+		{Name: "admin", Description: "超级管理员"},
+		{Name: "manager", Description: "物资管理员"},
+		{Name: "rescue", Description: "救援人员"},
+		{Name: "user", Description: "普通用户"},
 	}
 
-	//创建初始管理员
-	adminUsername := "admin"
-	_, err := repo.GetUserByUsername(ctx, adminUsername)
-	if err != nil {
-		fmt.Println("Seeding admin user...")
-		err = svc.Register(ctx, adminUsername, "admin123", "admin@emergency.com", "13800000000", []string{model.RoleAdmin})
-		if err != nil {
-			fmt.Printf("Failed to seed admin user: %v\n", err)
+	for _, r := range roles {
+		var existing model.Role
+		if err := db.Where("name = ?", r.Name).First(&existing).Error; err != nil {
+			fmt.Printf("Seeding role: %s\n", r.Name)
+			db.Create(&r)
 		}
 	}
 }

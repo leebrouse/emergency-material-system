@@ -99,6 +99,11 @@ type ClientInterface interface {
 	PostAuthRefreshWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PostAuthRefresh(ctx context.Context, body PostAuthRefreshJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAuthRegisterWithBody request with any body
+	PostAuthRegisterWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAuthRegister(ctx context.Context, body PostAuthRegisterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) PostAuthLoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -151,6 +156,30 @@ func (c *Client) PostAuthRefreshWithBody(ctx context.Context, contentType string
 
 func (c *Client) PostAuthRefresh(ctx context.Context, body PostAuthRefreshJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostAuthRefreshRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAuthRegisterWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAuthRegisterRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAuthRegister(ctx context.Context, body PostAuthRegisterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAuthRegisterRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -268,6 +297,46 @@ func NewPostAuthRefreshRequestWithBody(server string, contentType string, body i
 	return req, nil
 }
 
+// NewPostAuthRegisterRequest calls the generic PostAuthRegister builder with application/json body
+func NewPostAuthRegisterRequest(server string, body PostAuthRegisterJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAuthRegisterRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAuthRegisterRequestWithBody generates requests for PostAuthRegister with any type of body
+func NewPostAuthRegisterRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/register")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -323,6 +392,11 @@ type ClientWithResponsesInterface interface {
 	PostAuthRefreshWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthRefreshResponse, error)
 
 	PostAuthRefreshWithResponse(ctx context.Context, body PostAuthRefreshJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthRefreshResponse, error)
+
+	// PostAuthRegisterWithBodyWithResponse request with any body
+	PostAuthRegisterWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthRegisterResponse, error)
+
+	PostAuthRegisterWithResponse(ctx context.Context, body PostAuthRegisterJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthRegisterResponse, error)
 }
 
 type PostAuthLoginResponse struct {
@@ -401,6 +475,31 @@ func (r PostAuthRefreshResponse) StatusCode() int {
 	return 0
 }
 
+type PostAuthRegisterResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Id      *string `json:"id,omitempty"`
+		Message *string `json:"message,omitempty"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAuthRegisterResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAuthRegisterResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // PostAuthLoginWithBodyWithResponse request with arbitrary body returning *PostAuthLoginResponse
 func (c *ClientWithResponses) PostAuthLoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthLoginResponse, error) {
 	rsp, err := c.PostAuthLoginWithBody(ctx, contentType, body, reqEditors...)
@@ -442,6 +541,23 @@ func (c *ClientWithResponses) PostAuthRefreshWithResponse(ctx context.Context, b
 		return nil, err
 	}
 	return ParsePostAuthRefreshResponse(rsp)
+}
+
+// PostAuthRegisterWithBodyWithResponse request with arbitrary body returning *PostAuthRegisterResponse
+func (c *ClientWithResponses) PostAuthRegisterWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAuthRegisterResponse, error) {
+	rsp, err := c.PostAuthRegisterWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAuthRegisterResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAuthRegisterWithResponse(ctx context.Context, body PostAuthRegisterJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAuthRegisterResponse, error) {
+	rsp, err := c.PostAuthRegister(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAuthRegisterResponse(rsp)
 }
 
 // ParsePostAuthLoginResponse parses an HTTP response from a PostAuthLoginWithResponse call
@@ -521,6 +637,35 @@ func ParsePostAuthRefreshResponse(rsp *http.Response) (*PostAuthRefreshResponse,
 			ExpiresIn    *int    `json:"expires_in,omitempty"`
 			RefreshToken *string `json:"refresh_token,omitempty"`
 			Token        *string `json:"token,omitempty"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAuthRegisterResponse parses an HTTP response from a PostAuthRegisterWithResponse call
+func ParsePostAuthRegisterResponse(rsp *http.Response) (*PostAuthRegisterResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAuthRegisterResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Id      *string `json:"id,omitempty"`
+			Message *string `json:"message,omitempty"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err

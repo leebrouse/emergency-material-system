@@ -18,6 +18,9 @@ type ServerInterface interface {
 	// 刷新令牌
 	// (POST /auth/refresh)
 	PostAuthRefresh(c *gin.Context)
+	// 用户注册
+	// (POST /auth/register)
+	PostAuthRegister(c *gin.Context)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -68,6 +71,19 @@ func (siw *ServerInterfaceWrapper) PostAuthRefresh(c *gin.Context) {
 	siw.Handler.PostAuthRefresh(c)
 }
 
+// PostAuthRegister operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthRegister(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthRegister(c)
+}
+
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL      string
@@ -98,11 +114,5 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/auth/login", wrapper.PostAuthLogin)
 	router.POST(options.BaseURL+"/auth/logout", wrapper.PostAuthLogout)
 	router.POST(options.BaseURL+"/auth/refresh", wrapper.PostAuthRefresh)
+	router.POST(options.BaseURL+"/auth/register", wrapper.PostAuthRegister)
 }
-
-// curl -X POST http://auth:8081/api/v1/auth/login \
-//   -H "Content-Type: application/json" \
-//   -d '{
-//     "username": "admin",
-//     "password": "admin123456"
-//   }'

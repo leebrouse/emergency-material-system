@@ -28,12 +28,7 @@ func (h *AuthHandler) PostAuthLogin(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
-
-	if body.Username == nil || body.Password == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "username and password are required"})
-		return
-	}
-
+	
 	token, refreshToken, expiresIn, err := h.authService.Login(c.Request.Context(), *body.Username, *body.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
@@ -76,5 +71,26 @@ func (h *AuthHandler) PostAuthRefresh(c *gin.Context) {
 		"refresh_token": newRefreshToken,
 		"expires_in":    expiresIn,
 		"token_type":    "Bearer",
+	})
+}
+
+// PostAuthRegister 用户注册 - 实现 ServerInterface
+func (h *AuthHandler) PostAuthRegister(c *gin.Context) {
+	var req auth.PostAuthRegisterJSONBody
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	// need to check null pointer
+	err := h.authService.Register(c.Request.Context(), *req.Username, *req.Password, req.Email, req.Phone, req.Roles)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"status":  "ok",
+		"message": "user registered successfully",
 	})
 }
