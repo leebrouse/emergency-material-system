@@ -1,0 +1,11 @@
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates libc6-compat wget
+
+WORKDIR /root/emergency-material-system/backend/internal/statistics
+COPY statistics .
+
+VOLUME ["/root/emergency-material-system/backend/internal/common/config"]
+
+EXPOSE 8084
+
+CMD ["./statistics"]

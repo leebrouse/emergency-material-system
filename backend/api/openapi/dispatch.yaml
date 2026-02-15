@@ -1,0 +1,142 @@
+openapi: 3.0.0
+info:
+  title: Dispatch API
+  version: 1.0.0
+  description: 智能需求响应与分配调度服务 API
+
+paths:
+  /dispatch/requests:
+    get:
+      summary: 获取需求申报列表
+      tags: [Dispatch]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: page_size
+          in: query
+          schema: { type: integer, default: 10 }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: 创建需求申报
+      tags: [Dispatch]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRequest'
+      responses:
+        '201':
+          description: Created
+
+  /dispatch/requests/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      summary: 获取需求单详情
+      tags: [Dispatch]
+      responses:
+        '200':
+          description: OK
+
+  /dispatch/requests/{id}/audit:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      summary: 审核需求单
+      tags: [Dispatch]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuditRequest'
+      responses:
+        '200':
+          description: OK
+
+  /dispatch/requests/{id}/allocation-suggestion:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      summary: 获取智能分配建议
+      tags: [Dispatch]
+      responses:
+        '200':
+          description: OK
+
+  /dispatch/tasks:
+    get:
+      summary: 获取配送任务列表
+      tags: [Dispatch]
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: 创建配送任务 (原子化执行分配与锁库)
+      tags: [Dispatch]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDispatchTask'
+      responses:
+        '201':
+          description: Created
+
+components:
+  schemas:
+    CreateRequest:
+      type: object
+      required: [material_id, quantity, urgency_level, target_area]
+      properties:
+        material_id: { type: integer }
+        quantity: { type: integer }
+        urgency_level: { type: string, enum: [L1, L2, L3] } # L1-L3
+        target_area: { type: string }
+        description: { type: string }
+
+    AuditRequest:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string, enum: [approve, reject] }
+        remark: { type: string }
+
+    CreateDispatchTask:
+      type: object
+      required: [request_id, allocations]
+      properties:
+        request_id: { type: integer }
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/AllocationEntry'
+
+    AllocationEntry:
+      type: object
+      required: [inventory_id, quantity]
+      properties:
+        inventory_id: { type: integer }
+        quantity: { type: integer }
+
+    Error:
+      type: object
+      properties:
+        error: { type: string }

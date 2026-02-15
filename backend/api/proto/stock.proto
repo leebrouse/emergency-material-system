@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package stock;
+
+option go_package = "github.com/emergency-material-system/backend/internal/common/genproto/stock";
+
+// 物资库存服务
+service StockService {
+  // 获取物资列表
+  rpc ListMaterials(ListMaterialsRequest) returns (ListMaterialsResponse);
+  
+  // 获取物资详情
+  rpc GetMaterial(GetMaterialRequest) returns (GetMaterialResponse);
+  
+  // 创建物资
+  rpc CreateMaterial(CreateMaterialRequest) returns (CreateMaterialResponse);
+  
+  // 更新物资
+  rpc UpdateMaterial(UpdateMaterialRequest) returns (UpdateMaterialResponse);
+  
+  // 获取库存信息 (单个汇总)
+  rpc GetInventory(GetInventoryRequest) returns (GetInventoryResponse);
+
+  // 获取明细库存列表 (支持批次、库位)
+  rpc ListInventoryItems(ListInventoryItemsRequest) returns (ListInventoryItemsResponse);
+  
+  // 更新库存
+  rpc UpdateInventory(UpdateInventoryRequest) returns (UpdateInventoryResponse);
+
+  // 批量锁定库存 (原子操作)
+  rpc LockStock(LockStockRequest) returns (LockStockResponse);
+}
+
+message ListMaterialsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+}
+
+message ListMaterialsResponse {
+  repeated Material materials = 1;
+  int32 total = 2;
+}
+
+message GetMaterialRequest {
+  int64 id = 1;
+}
+
+message GetMaterialResponse {
+  Material material = 1;
+}
+
+message CreateMaterialRequest {
+  string name = 1;
+  string category = 2;
+  string unit = 3;
+  string description = 4;
+}
+
+message CreateMaterialResponse {
+  Material material = 1;
+}
+
+message UpdateMaterialRequest {
+  int64 id = 1;
+  string name = 2;
+  string category = 3;
+  string unit = 4;
+  string description = 5;
+}
+
+message UpdateMaterialResponse {
+  Material material = 1;
+}
+
+message GetInventoryRequest {
+  int64 material_id = 1;
+}
+
+message GetInventoryResponse {
+  Inventory inventory = 1;
+}
+
+message ListInventoryItemsRequest {
+  int64 material_id = 1;
+}
+
+message ListInventoryItemsResponse {
+  repeated InventoryItem items = 1;
+}
+
+message UpdateInventoryRequest {
+  int64 material_id = 1;
+  int64 quantity = 2;
+  string operation = 3; // "add", "subtract", "set"
+}
+
+message UpdateInventoryResponse {
+  Inventory inventory = 1;
+}
+
+message LockStockRequest {
+  int64 request_id = 1;
+  repeated StockLockItem items = 2;
+}
+
+message StockLockItem {
+  int64 inventory_id = 1;
+  int64 quantity = 2;
+}
+
+message LockStockResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message Material {
+  int64 id = 1;
+  string name = 2;
+  string category = 3;
+  string unit = 4;
+  string description = 5;
+  int64 created_at = 6;
+  int64 updated_at = 7;
+}
+
+message Inventory {
+  int64 id = 1;
+  int64 material_id = 2;
+  int64 quantity = 3;
+  int64 reserved_quantity = 4;
+  int64 updated_at = 5;
+}
+
+message InventoryItem {
+  int64 id = 1;
+  int64 material_id = 2;
+  string location = 3;
+  int64 quantity = 4;
+  int64 locked_quantity = 5;
+  string batch_num = 6;
+  int64 expiry_date = 7; // Unix timestamp
+}

@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/emergency-material-system/backend/internal/common/genproto/auth";
+
+// 认证服务
+service AuthService {
+  // 验证令牌
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+}
+
+// 验证令牌请求
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+// 验证令牌响应
+message ValidateTokenResponse {
+  bool valid = 1;
+  int64 user_id = 2;
+  repeated string roles = 3;
+}
+

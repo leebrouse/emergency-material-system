@@ -1,0 +1,121 @@
+openapi: 3.0.0
+info:
+  title: Stock API
+  version: 1.0.0
+  description: 物资与库存服务 API
+
+paths:
+  /stock/materials:
+    get:
+      summary: 获取物资列表
+      tags:
+        - Stock
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功返回物资列表
+    post:
+      summary: 创建物资
+      tags:
+        - Stock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Material'
+      responses:
+        '201':
+          description: 创建成功
+
+  /stock/materials/{id}:
+    get:
+      summary: 获取物资详情
+      tags:
+        - Stock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功返回物资详情
+
+  /stock/inventory:
+    get:
+      summary: 获取库存信息
+      tags:
+        - Stock
+      responses:
+        '200':
+          description: 成功返回库存信息
+
+  /stock/inbound:
+    post:
+      summary: 物资入库
+      tags:
+        - Stock
+      responses:
+        '200':
+          description: 入库成功
+
+  /stock/outbound:
+    post:
+      summary: 物资出库
+      tags:
+        - Stock
+      responses:
+        '200':
+          description: 出库成功
+
+  /stock/transfer:
+    post:
+      summary: 库存调拨
+      tags:
+        - Stock
+      responses:
+        '200':
+          description: 调拨成功
+
+  /stock/stats:
+    get:
+      summary: 库存统计
+      tags:
+        - Stock
+      responses:
+        '200':
+          description: 成功返回统计信息
+
+components:
+  schemas:
+    Material:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+        specs:
+          type: string
+        unit:
+          type: string
+        batch_num:
+          type: string
+        description:
+          type: string
