@@ -1,9 +1,12 @@
-
+data/
 # backend/internal/common/config/global.yaml
 
 # Go Workspace 文件（本地开发配置，不应提交）
 backend/go.work
 backend/go.work.sum
-backend/deploy/data
 
-frontend/
+# frontend dependencies and build outputs
+frontend/app/node_modules
+frontend/app/coverage
+frontend/app/dist
+frontend/app/.tmp
