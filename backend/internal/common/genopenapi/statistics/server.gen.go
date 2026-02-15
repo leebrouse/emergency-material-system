@@ -9,13 +9,13 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// 获取报表数据
+	// 获取统计报表
 	// (GET /statistics/reports)
 	GetStatisticsReports(c *gin.Context)
-	// 获取统计摘要
+	// 获取统计汇总
 	// (GET /statistics/summary)
 	GetStatisticsSummary(c *gin.Context)
-	// 获取趋势分析
+	// 获取统计趋势
 	// (GET /statistics/trends)
 	GetStatisticsTrends(c *gin.Context)
 }

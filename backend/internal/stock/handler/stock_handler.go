@@ -79,6 +79,31 @@ func (h *StockHandler) GetStockMaterialsId(c *gin.Context, id int) {
 	c.JSON(http.StatusOK, m)
 }
 
+// PutStockMaterialsId 更新物资
+func (h *StockHandler) PutStockMaterialsId(c *gin.Context, id int) {
+	var m model.Material
+	if err := c.ShouldBindJSON(&m); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	m.ID = uint(id)
+
+	if err := h.stockService.UpdateMaterial(c.Request.Context(), &m); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, m)
+}
+
+// DeleteStockMaterialsId 删除物资
+func (h *StockHandler) DeleteStockMaterialsId(c *gin.Context, id int) {
+	if err := h.stockService.DeleteMaterial(c.Request.Context(), uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 // GetStockInventory 获取库存列表
 func (h *StockHandler) GetStockInventory(c *gin.Context) {
 	// 简化处理分页，或从 query 获取

@@ -41,6 +41,8 @@ type StockService interface {
 	CreateMaterial(ctx context.Context, m *model.Material) error
 	ListMaterials(ctx context.Context, page, pageSize int, search string) ([]*model.Material, int64, error)
 	GetMaterial(ctx context.Context, id uint) (*model.Material, error)
+	UpdateMaterial(ctx context.Context, m *model.Material) error
+	DeleteMaterial(ctx context.Context, id uint) error
 
 	// Stock Operations
 	Inbound(ctx context.Context, req *InboundRequest) error
@@ -52,6 +54,7 @@ type StockService interface {
 	ListInventoryByMaterial(ctx context.Context, materialID uint) ([]*model.Inventory, error)
 	GetInventoryStats(ctx context.Context) ([]map[string]interface{}, error)
 	LockStock(ctx context.Context, requestID uint, items map[uint]int64) error
+	ListStockLogs(ctx context.Context, materialID uint, logType string, page, pageSize int) ([]*model.StockLog, int64, error)
 }
 
 type stockService struct {
@@ -73,6 +76,14 @@ func (s *stockService) ListMaterials(ctx context.Context, page, pageSize int, se
 
 func (s *stockService) GetMaterial(ctx context.Context, id uint) (*model.Material, error) {
 	return s.repo.GetMaterialByID(ctx, id)
+}
+
+func (s *stockService) UpdateMaterial(ctx context.Context, m *model.Material) error {
+	return s.repo.UpdateMaterial(ctx, m)
+}
+
+func (s *stockService) DeleteMaterial(ctx context.Context, id uint) error {
+	return s.repo.DeleteMaterial(ctx, id)
 }
 
 func (s *stockService) Inbound(ctx context.Context, req *InboundRequest) error {
@@ -227,6 +238,11 @@ func (s *stockService) LockStock(ctx context.Context, requestID uint, items map[
 		}
 		return nil
 	})
+}
+
+func (s *stockService) ListStockLogs(ctx context.Context, materialID uint, logType string, page, pageSize int) ([]*model.StockLog, int64, error) {
+	offset := (page - 1) * pageSize
+	return s.repo.ListStockLogs(ctx, materialID, logType, offset, pageSize)
 }
 
 // triggerStockAlert 库存预警 Hook

@@ -42,13 +42,13 @@ frontend-app/
    - Dynamic sidebar menu based on user role (Admin, Warehouse, Rescue).
 
 2. **Responsive Layout**:
-   - `MainLayout.vue` uses CSS Grid `grid-template-columns: 250px 1fr`.
-   - Sidebar collapses on mobile (implementation pending, currently fixed width).
-   - Top navigation with alert integration.
+   - `MainLayout.vue` uses CSS Grid `grid-template-columns: 250px 1fr` (expand) or `80px 1fr` (collapse).
+   - Sidebar supports collapsing toggle for desktop and drawer for mobile.
+   - Top navigation with alert integration and page titles.
 
 3. **Dashboard & Visualization**:
    - ECharts integration for real-time data visualization.
-   - Logistics map placeholder ready for AMap integration.
+   - Logistics map with AMap integration and real-time movement simulation.
 
 4. **Inventory & Dispatch**:
    - Element Plus tables for inventory.

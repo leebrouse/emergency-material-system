@@ -1,12 +1,26 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useDispatchStore, type DispatchRequest } from '@/stores/dispatch'
 import { Van, Loading, Select } from '@element-plus/icons-vue'
 
+import { useInventoryStore } from '@/stores/inventory'
+import { Plus } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+
 const dispatchStore = useDispatchStore()
+const inventoryStore = useInventoryStore()
 const activeTab = ref('pending')
 const dialogVisible = ref(false)
 const selectedRequest = ref<DispatchRequest | null>(null)
+
+// Create Request Logic
+const createDialogVisible = ref(false)
+const newRequest = ref({
+    material_id: undefined as number | undefined,
+    quantity: 100,
+    urgency: 'L2' as 'L1' | 'L2' | 'L3',
+    region: ''
+})
 
 // Mock Recommendation Logic
 const recommendation = ref<{ warehouse: string; eta: string; route: string }>({ warehouse: '', eta: '', route: '' })
@@ -14,22 +28,52 @@ const isAnalysisLoading = ref(false)
 
 onMounted(() => {
     dispatchStore.fetchDemands()
+    inventoryStore.fetchMaterials()
 })
 
-const handleAudit = (req: DispatchRequest) => {
+const handleCreate = () => {
+    if (!newRequest.value.material_id || !newRequest.value.region) {
+        ElMessage.warning('请填写完整信息')
+        return
+    }
+    dispatchStore.createRequest({
+        material_id: newRequest.value.material_id,
+        quantity: newRequest.value.quantity,
+        urgency: newRequest.value.urgency,
+        region: newRequest.value.region
+    })
+    createDialogVisible.value = false
+    ElMessage.success('需求申报提交成功')
+    newRequest.value = { material_id: undefined, quantity: 100, urgency: 'L2', region: '' }
+}
+
+const handleAudit = async (req: DispatchRequest) => {
     selectedRequest.value = req
     dialogVisible.value = true
     isAnalysisLoading.value = true
     
-    // Simulate AI Analysis
-    setTimeout(() => {
-        recommendation.value = {
-            warehouse: '中央物资仓库 (距离: 12km)',
-            eta: '35分钟',
-            route: '最优路线: 三环高速'
+    try {
+        const suggestions = await dispatchStore.getSuggestion(req.id)
+        if (suggestions && suggestions.length > 0) {
+            const best = suggestions[0]
+            recommendation.value = {
+                warehouse: `${best.location} (库存ID: ${best.inventory_id})`,
+                eta: '预计 30-60 分钟', // Backend currently doesn't calculate ETA
+                route: '智能规划路线'
+            }
+        } else {
+             recommendation.value = {
+                warehouse: '库存不足或未找到合适仓库',
+                eta: '-',
+                route: '-'
+            }
         }
+    } catch (e) {
+        console.error(e)
+        recommendation.value = { warehouse: '计算失败', eta: '-', route: '-' }
+    } finally {
         isAnalysisLoading.value = false
-    }, 1500)
+    }
 }
 
 const confirmAllocation = async () => {
@@ -62,7 +106,10 @@ const getUrgencyLabel = (urgency: string) => {
 
 <template>
     <div class="h-full flex flex-col space-y-4">
-        <h1 class="text-2xl font-bold text-gray-800">调度指挥</h1>
+        <div class="flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-gray-800">调度指挥</h1>
+            <el-button type="primary" :icon="Plus" @click="createDialogVisible = true">模拟需求申报</el-button>
+        </div>
 
         <el-tabs v-model="activeTab" class="flex-1 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
             <!-- PENDING REQUESTS -->
@@ -183,6 +230,35 @@ const getUrgencyLabel = (urgency: string) => {
                     <el-button type="primary" :disabled="isAnalysisLoading" @click="confirmAllocation">
                         确认分配
                     </el-button>
+                </span>
+            </template>
+        </el-dialog>
+        <!-- Create Request Dialog -->
+        <el-dialog v-model="createDialogVisible" title="模拟需求申报" width="500px">
+            <el-form label-position="top">
+                <el-form-item label="需求物资">
+                    <el-select v-model="newRequest.material_id" placeholder="选择物资" class="w-full">
+                        <el-option v-for="item in inventoryStore.materials" :key="item.id" :label="item.name" :value="item.id" />
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="数量">
+                    <el-input-number v-model="newRequest.quantity" :min="1" class="w-full" />
+                </el-form-item>
+                <el-form-item label="紧急程度">
+                    <el-select v-model="newRequest.urgency" class="w-full">
+                        <el-option label="普通 (L1)" value="L1" />
+                        <el-option label="高优先 (L2)" value="L2" />
+                        <el-option label="紧急 (L3)" value="L3" />
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="目标区域">
+                    <el-input v-model="newRequest.region" placeholder="例如: 北部受灾区" />
+                </el-form-item>
+            </el-form>
+             <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="createDialogVisible = false">取消</el-button>
+                    <el-button type="primary" @click="handleCreate">提交申报</el-button>
                 </span>
             </template>
         </el-dialog>

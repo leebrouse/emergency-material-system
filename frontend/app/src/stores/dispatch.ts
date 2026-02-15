@@ -25,35 +25,44 @@ export const useDispatchStore = defineStore('dispatch', () => {
         isLoading.value = true
         try {
             const res = await dispatchApi.getDemands({ page: 1, page_size: 100 })
-            const demands: Demand[] = res.data.demands || []
+            const demands: Demand[] = res.data.data || []
 
             requests.value = demands.map(d => {
                 let urgency: 'High' | 'Medium' | 'Critical' = 'Medium'
-                if (d.priority === 'high') urgency = 'High'
-                else if (d.priority === 'critical') urgency = 'Critical'
+                // Map backend urgency (L1/L2/L3) or legacy priority to frontend urgency
+                const p = (d.priority || d.urgency || 'L2').toUpperCase()
+                if (p === 'HIGH' || p === 'L2') urgency = 'High'
+                else if (p === 'CRITICAL' || p === 'L3') urgency = 'Critical'
+                else if (p === 'L1') urgency = 'Medium'
 
                 let status: DispatchRequest['status'] = 'Pending'
-                if (d.status === 'approved') status = 'Approved'
-                else if (d.status === 'dispatched') status = 'In Transit'
-                else if (d.status === 'completed') status = 'Delivered'
+                // Map status
+                const s = (d.status || '').toLowerCase()
+                if (s === 'approved') status = 'Approved'
+                else if (s === 'dispatched' || s === 'intransit') status = 'In Transit'
+                else if (s === 'completed' || s === 'delivered') status = 'Delivered'
+
+                // Map items
+                let itemsStr = d.description || ''
+                if (d.items && d.items.length > 0) {
+                    itemsStr = d.items.map(i => `${i.quantity}件`).join(', ')
+                } else if (d.quantity && d.material_id) {
+                    // If structure is flat (from new createRequest)
+                    itemsStr = `物资ID:${d.material_id} x ${d.quantity}`
+                }
 
                 return {
                     id: d.id,
-                    region: d.location,
+                    region: d.location || d.target_area || 'Unknown',
                     urgency,
-                    items: d.items?.map(i => `${i.quantity}件`).join(', ') || d.description,
+                    items: itemsStr,
                     status,
                     coordinates: [116.481028, 39.989643] as [number, number] // Default coords
                 }
             })
         } catch (error) {
             console.error('Failed to fetch demands', error)
-            // Fallback mock data
-            requests.value = [
-                { id: 101, region: '东部救援点 (4号帐篷区)', urgency: 'High', items: '200顶帐篷', status: 'Pending', coordinates: [116.481028, 39.989643] },
-                { id: 102, region: '北部医疗站', urgency: 'Medium', items: '500箱饮用水', status: 'Approved', coordinates: [116.410003, 39.905694], warehouse: '中央物资仓库', estimatedTime: '45分钟' },
-                { id: 103, region: '市人民医院A区', urgency: 'Critical', items: '血浆及急救药品', status: 'In Transit', coordinates: [116.322056, 39.897445], warehouse: '医疗物资储备库', estimatedTime: '12分钟', driver: '运输车-04' },
-            ]
+            requests.value = []
         } finally {
             isLoading.value = false
         }
@@ -61,7 +70,7 @@ export const useDispatchStore = defineStore('dispatch', () => {
 
     async function approveRequest(id: number, warehouse: string, eta: string) {
         try {
-            await dispatchApi.updateDemandStatus(id, 'approved')
+            await dispatchApi.updateDemandStatus(id, 'approve', `Selected warehouse: ${warehouse}, ETA: ${eta}`)
             const req = requests.value.find(r => r.id === id)
             if (req) {
                 req.status = 'Approved'
@@ -88,5 +97,33 @@ export const useDispatchStore = defineStore('dispatch', () => {
         }
     }
 
-    return { requests, activeDispatches, pendingRequests, fetchDemands, approveRequest, startDispatch, isLoading }
+    async function createRequest(data: { material_id: number, quantity: number, urgency: 'L1' | 'L2' | 'L3', region: string }) {
+        isLoading.value = true
+        try {
+            await dispatchApi.createRequest({
+                material_id: data.material_id,
+                quantity: data.quantity,
+                urgency_level: data.urgency,
+                target_area: data.region,
+                description: 'Generated from frontend'
+            })
+            await fetchDemands()
+        } catch (error) {
+            console.error('Failed to create request', error)
+        } finally {
+            isLoading.value = false
+        }
+    }
+
+    async function getSuggestion(id: number) {
+        try {
+            const res = await dispatchApi.getSuggestion(id)
+            return res.data
+        } catch (error) {
+            console.error('Failed to get suggestion', error)
+            return []
+        }
+    }
+
+    return { requests, activeDispatches, pendingRequests, fetchDemands, approveRequest, startDispatch, createRequest, getSuggestion, isLoading }
 })

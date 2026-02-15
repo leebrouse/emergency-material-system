@@ -103,8 +103,16 @@ type ClientInterface interface {
 
 	PostStockMaterials(ctx context.Context, body PostStockMaterialsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteStockMaterialsId request
+	DeleteStockMaterialsId(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetStockMaterialsId request
 	GetStockMaterialsId(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutStockMaterialsIdWithBody request with any body
+	PutStockMaterialsIdWithBody(ctx context.Context, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutStockMaterialsId(ctx context.Context, id int, body PutStockMaterialsIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostStockOutbound request
 	PostStockOutbound(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -176,8 +184,44 @@ func (c *Client) PostStockMaterials(ctx context.Context, body PostStockMaterials
 	return c.Client.Do(req)
 }
 
+func (c *Client) DeleteStockMaterialsId(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteStockMaterialsIdRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetStockMaterialsId(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetStockMaterialsIdRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutStockMaterialsIdWithBody(ctx context.Context, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutStockMaterialsIdRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutStockMaterialsId(ctx context.Context, id int, body PutStockMaterialsIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutStockMaterialsIdRequest(c.Server, id, body)
 	if err != nil {
 		return nil, err
 	}
@@ -399,6 +443,40 @@ func NewPostStockMaterialsRequestWithBody(server string, contentType string, bod
 	return req, nil
 }
 
+// NewDeleteStockMaterialsIdRequest generates requests for DeleteStockMaterialsId
+func NewDeleteStockMaterialsIdRequest(server string, id int) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/stock/materials/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetStockMaterialsIdRequest generates requests for GetStockMaterialsId
 func NewGetStockMaterialsIdRequest(server string, id int) (*http.Request, error) {
 	var err error
@@ -429,6 +507,53 @@ func NewGetStockMaterialsIdRequest(server string, id int) (*http.Request, error)
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewPutStockMaterialsIdRequest calls the generic PutStockMaterialsId builder with application/json body
+func NewPutStockMaterialsIdRequest(server string, id int, body PutStockMaterialsIdJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutStockMaterialsIdRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewPutStockMaterialsIdRequestWithBody generates requests for PutStockMaterialsId with any type of body
+func NewPutStockMaterialsIdRequestWithBody(server string, id int, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/stock/materials/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -571,8 +696,16 @@ type ClientWithResponsesInterface interface {
 
 	PostStockMaterialsWithResponse(ctx context.Context, body PostStockMaterialsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostStockMaterialsResponse, error)
 
+	// DeleteStockMaterialsIdWithResponse request
+	DeleteStockMaterialsIdWithResponse(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*DeleteStockMaterialsIdResponse, error)
+
 	// GetStockMaterialsIdWithResponse request
 	GetStockMaterialsIdWithResponse(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*GetStockMaterialsIdResponse, error)
+
+	// PutStockMaterialsIdWithBodyWithResponse request with any body
+	PutStockMaterialsIdWithBodyWithResponse(ctx context.Context, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutStockMaterialsIdResponse, error)
+
+	PutStockMaterialsIdWithResponse(ctx context.Context, id int, body PutStockMaterialsIdJSONRequestBody, reqEditors ...RequestEditorFn) (*PutStockMaterialsIdResponse, error)
 
 	// PostStockOutboundWithResponse request
 	PostStockOutboundWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostStockOutboundResponse, error)
@@ -668,6 +801,27 @@ func (r PostStockMaterialsResponse) StatusCode() int {
 	return 0
 }
 
+type DeleteStockMaterialsIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteStockMaterialsIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteStockMaterialsIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetStockMaterialsIdResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -683,6 +837,27 @@ func (r GetStockMaterialsIdResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetStockMaterialsIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutStockMaterialsIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r PutStockMaterialsIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutStockMaterialsIdResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -796,6 +971,15 @@ func (c *ClientWithResponses) PostStockMaterialsWithResponse(ctx context.Context
 	return ParsePostStockMaterialsResponse(rsp)
 }
 
+// DeleteStockMaterialsIdWithResponse request returning *DeleteStockMaterialsIdResponse
+func (c *ClientWithResponses) DeleteStockMaterialsIdWithResponse(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*DeleteStockMaterialsIdResponse, error) {
+	rsp, err := c.DeleteStockMaterialsId(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteStockMaterialsIdResponse(rsp)
+}
+
 // GetStockMaterialsIdWithResponse request returning *GetStockMaterialsIdResponse
 func (c *ClientWithResponses) GetStockMaterialsIdWithResponse(ctx context.Context, id int, reqEditors ...RequestEditorFn) (*GetStockMaterialsIdResponse, error) {
 	rsp, err := c.GetStockMaterialsId(ctx, id, reqEditors...)
@@ -803,6 +987,23 @@ func (c *ClientWithResponses) GetStockMaterialsIdWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseGetStockMaterialsIdResponse(rsp)
+}
+
+// PutStockMaterialsIdWithBodyWithResponse request with arbitrary body returning *PutStockMaterialsIdResponse
+func (c *ClientWithResponses) PutStockMaterialsIdWithBodyWithResponse(ctx context.Context, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutStockMaterialsIdResponse, error) {
+	rsp, err := c.PutStockMaterialsIdWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutStockMaterialsIdResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutStockMaterialsIdWithResponse(ctx context.Context, id int, body PutStockMaterialsIdJSONRequestBody, reqEditors ...RequestEditorFn) (*PutStockMaterialsIdResponse, error) {
+	rsp, err := c.PutStockMaterialsId(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutStockMaterialsIdResponse(rsp)
 }
 
 // PostStockOutboundWithResponse request returning *PostStockOutboundResponse
@@ -896,6 +1097,22 @@ func ParsePostStockMaterialsResponse(rsp *http.Response) (*PostStockMaterialsRes
 	return response, nil
 }
 
+// ParseDeleteStockMaterialsIdResponse parses an HTTP response from a DeleteStockMaterialsIdWithResponse call
+func ParseDeleteStockMaterialsIdResponse(rsp *http.Response) (*DeleteStockMaterialsIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteStockMaterialsIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseGetStockMaterialsIdResponse parses an HTTP response from a GetStockMaterialsIdWithResponse call
 func ParseGetStockMaterialsIdResponse(rsp *http.Response) (*GetStockMaterialsIdResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -905,6 +1122,22 @@ func ParseGetStockMaterialsIdResponse(rsp *http.Response) (*GetStockMaterialsIdR
 	}
 
 	response := &GetStockMaterialsIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParsePutStockMaterialsIdResponse parses an HTTP response from a PutStockMaterialsIdWithResponse call
+func ParsePutStockMaterialsIdResponse(rsp *http.Response) (*PutStockMaterialsIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutStockMaterialsIdResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

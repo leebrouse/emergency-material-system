@@ -65,8 +65,9 @@ const handleLogin = async () => {
               </button>
           </form>
           
-          <div class="mt-6 text-center">
-              <span class="text-xs text-gray-500">安全连接 • v2.4.0</span>
+          <div class="mt-6 text-center flex flex-col items-center gap-2">
+              <router-link to="/register" class="text-emerald-400 hover:text-emerald-300 text-sm transition-colors">没有账户？立即注册</router-link>
+              <span class="text-[10px] text-gray-500 uppercase tracking-widest opacity-50">安全连接 • v2.4.0</span>
           </div>
       </div>
   </div>

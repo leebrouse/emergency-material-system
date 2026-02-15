@@ -1,4 +1,5 @@
 services:
+
   # Auth Service (认证服务)
   auth:
     build:
@@ -12,7 +13,7 @@ services:
     depends_on:
       - mysql
     volumes:
-      - /root/emergency-material-system/backend/internal/common/config:/root/emergency-material-system/backend/internal/common/config
+      - ../internal/common/config:/root/emergency-material-system/backend/internal/common/config
 
   # Stock Service (物资库存服务)
   stock:
@@ -76,16 +77,6 @@ services:
     volumes:
       - ./data/mysql:/var/lib/mysql
 
-  # influxdb
-  influxdb:
-    image: influxdb:1.8
-    container_name: influxdb
-    ports:
-      - "8086:8086"
-    restart: unless-stopped
-    volumes:
-      - ./data/influxdb:/var/lib/influxdb
-
   # Grafana
   grafana:
     image: grafana/grafana:latest
@@ -95,5 +86,3 @@ services:
     restart: unless-stopped
     volumes:
       - ./data/grafana:/var/lib/grafana
-    depends_on:
-      - influxdb

@@ -2,10 +2,10 @@ services:
   auth:
     rest: "8081"
     grpc: "9091"
-    host: "127.0.0.1"
+    host: "auth"
     mysql:
-      host: "localhost"
-      port: "3307"
+      host: "mysql"
+      port: "3306"
       user: "root"
       password: "123456"
       database: "auth"
@@ -16,9 +16,9 @@ services:
   stock:
     rest: "8082"
     grpc: "9092"
-    host: "127.0.0.1"
+    host: "stock"
     mysql:
-      host: "localhost"
+      host: "mysql"
       port: "3306"
       user: "root"
       password: "123456"
@@ -27,9 +27,9 @@ services:
   dispatch:
     rest: "8083"
     grpc: "9093"
-    host: "127.0.0.1"
+    host: "dispatch"
     mysql:
-      host: "localhost"
+      host: "mysql"
       port: "3306"
       user: "root"
       password: "123456"
@@ -39,7 +39,7 @@ services:
     rest: "8084"
     grpc: ""
     mysql:
-      host: "localhost"
+      host: "mysql"
       port: "3306"
       user: "root"
       password: "123456"
@@ -49,9 +49,9 @@ services:
   logistics:
     rest: "8085"
     grpc: "9095" # Added grpc port for logistics
-    host: "127.0.0.1"
+    host: "logistics"
     mysql:
-      host: "localhost"
+      host: "mysql"
       port: "3306"
       user: "root"
       password: "123456"

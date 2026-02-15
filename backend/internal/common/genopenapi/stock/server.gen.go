@@ -25,9 +25,15 @@ type ServerInterface interface {
 	// 创建物资
 	// (POST /stock/materials)
 	PostStockMaterials(c *gin.Context)
+	// 删除物资
+	// (DELETE /stock/materials/{id})
+	DeleteStockMaterialsId(c *gin.Context, id int)
 	// 获取物资详情
 	// (GET /stock/materials/{id})
 	GetStockMaterialsId(c *gin.Context, id int)
+	// 更新物资
+	// (PUT /stock/materials/{id})
+	PutStockMaterialsId(c *gin.Context, id int)
 	// 物资出库
 	// (POST /stock/outbound)
 	PostStockOutbound(c *gin.Context)
@@ -129,6 +135,30 @@ func (siw *ServerInterfaceWrapper) PostStockMaterials(c *gin.Context) {
 	siw.Handler.PostStockMaterials(c)
 }
 
+// DeleteStockMaterialsId operation middleware
+func (siw *ServerInterfaceWrapper) DeleteStockMaterialsId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int
+
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteStockMaterialsId(c, id)
+}
+
 // GetStockMaterialsId operation middleware
 func (siw *ServerInterfaceWrapper) GetStockMaterialsId(c *gin.Context) {
 
@@ -151,6 +181,30 @@ func (siw *ServerInterfaceWrapper) GetStockMaterialsId(c *gin.Context) {
 	}
 
 	siw.Handler.GetStockMaterialsId(c, id)
+}
+
+// PutStockMaterialsId operation middleware
+func (siw *ServerInterfaceWrapper) PutStockMaterialsId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int
+
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutStockMaterialsId(c, id)
 }
 
 // PostStockOutbound operation middleware
@@ -223,7 +277,9 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/stock/inventory", wrapper.GetStockInventory)
 	router.GET(options.BaseURL+"/stock/materials", wrapper.GetStockMaterials)
 	router.POST(options.BaseURL+"/stock/materials", wrapper.PostStockMaterials)
+	router.DELETE(options.BaseURL+"/stock/materials/:id", wrapper.DeleteStockMaterialsId)
 	router.GET(options.BaseURL+"/stock/materials/:id", wrapper.GetStockMaterialsId)
+	router.PUT(options.BaseURL+"/stock/materials/:id", wrapper.PutStockMaterialsId)
 	router.POST(options.BaseURL+"/stock/outbound", wrapper.PostStockOutbound)
 	router.GET(options.BaseURL+"/stock/stats", wrapper.GetStockStats)
 	router.POST(options.BaseURL+"/stock/transfer", wrapper.PostStockTransfer)

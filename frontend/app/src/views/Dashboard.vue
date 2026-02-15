@@ -3,11 +3,13 @@ import { onMounted, ref, computed, watchEffect } from 'vue'
 import * as echarts from 'echarts'
 import { useInventoryStore } from '@/stores/inventory'
 import { useDispatchStore } from '@/stores/dispatch'
+import { statisticsApi, type TrendPoint } from '@/api/statistics'
 
 const inventoryStore = useInventoryStore()
 const dispatchStore = useDispatchStore()
 const lineChartRef = ref<HTMLElement | null>(null)
 const pieChartRef = ref<HTMLElement | null>(null)
+const trendData = ref<TrendPoint[]>([])
 
 // Computed Stats for Cards
 const totalStockQuantity = computed(() => {
@@ -48,13 +50,13 @@ const updateLineChart = () => {
         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
         xAxis: {
             type: 'category',
-            data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+            data: trendData.value.map(p => p.date),
             axisLine: { lineStyle: { color: '#9CA3AF' } }
         },
         yAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed' } } },
         series: [
             {
-                data: [150, 230, 224, 218, 135, 147, 260],
+                data: trendData.value.map(p => p.value),
                 type: 'line',
                 smooth: true,
                 showSymbol: false,
@@ -106,10 +108,26 @@ const updatePieChart = () => {
     })
 }
 
+const fetchTrends = async () => {
+    try {
+        const res = await statisticsApi.getTrends()
+        trendData.value = res.data
+        updateLineChart()
+    } catch (error) {
+        console.error('Failed to fetch trends', error)
+        // Fallback to some semi-real looking empty state if error
+        trendData.value = [
+            { date: '周一', value: 0 }, { date: '周二', value: 0 }, { date: '周三', value: 0 },
+            { date: '周四', value: 0 }, { date: '周五', value: 0 }, { date: '周六', value: 0 }, { date: '周日', value: 0 }
+        ]
+    }
+}
+
 onMounted(() => {
     inventoryStore.fetchMaterials()
     dispatchStore.fetchDemands()
-    setTimeout(initCharts, 100) // Slight delay to ensure DOM is ready
+    fetchTrends()
+    setTimeout(initCharts, 100)
 })
 
 // React to store changes

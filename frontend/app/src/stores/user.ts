@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { authApi, type LoginRequest } from '@/api/auth'
+import { authApi, type LoginRequest, type RegisterRequest } from '@/api/auth'
 import { ElMessage } from 'element-plus'
 
 export const useUserStore = defineStore('user', () => {
@@ -49,5 +49,16 @@ export const useUserStore = defineStore('user', () => {
         localStorage.setItem('role', newRole);
     }
 
-    return { token, role, login, setToken, removeToken, setRole }
+    async function register(data: RegisterRequest) {
+        try {
+            await authApi.register(data)
+            ElMessage.success('注册成功，请登录')
+            return true
+        } catch (error: any) {
+            ElMessage.error(error.response?.data?.message || '注册失败')
+            return false
+        }
+    }
+
+    return { token, role, login, register, setToken, removeToken, setRole }
 })

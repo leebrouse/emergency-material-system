@@ -17,6 +17,9 @@ service StockService {
   
   // 更新物资
   rpc UpdateMaterial(UpdateMaterialRequest) returns (UpdateMaterialResponse);
+
+  // 删除物资
+  rpc DeleteMaterial(DeleteMaterialRequest) returns (DeleteMaterialResponse);
   
   // 获取库存信息 (单个汇总)
   rpc GetInventory(GetInventoryRequest) returns (GetInventoryResponse);
@@ -29,6 +32,30 @@ service StockService {
 
   // 批量锁定库存 (原子操作)
   rpc LockStock(LockStockRequest) returns (LockStockResponse);
+
+  // 获取库存流水
+  rpc ListStockLogs(ListStockLogsRequest) returns (ListStockLogsResponse);
+}
+
+message ListStockLogsRequest {
+  int64 material_id = 1;
+  string type = 2; // "Inbound", "Outbound", "Transfer"
+  int32 limit = 3;
+}
+
+message ListStockLogsResponse {
+  repeated StockLog logs = 1;
+}
+
+message StockLog {
+    int64 id = 1;
+    int64 material_id = 2;
+    string type = 3;
+    int64 quantity_change = 4;
+    int64 balance_after = 5;
+    int64 operator_id = 6;
+    string remark = 7;
+    int64 created_at = 8;
 }
 
 message ListMaterialsRequest {
@@ -55,6 +82,8 @@ message CreateMaterialRequest {
   string category = 2;
   string unit = 3;
   string description = 4;
+  string specs = 5;
+  int64 min_stock = 6;
 }
 
 message CreateMaterialResponse {
@@ -67,10 +96,20 @@ message UpdateMaterialRequest {
   string category = 3;
   string unit = 4;
   string description = 5;
+  string specs = 6;
+  int64 min_stock = 7;
 }
 
 message UpdateMaterialResponse {
   Material material = 1;
+}
+
+message DeleteMaterialRequest {
+  int64 id = 1;
+}
+
+message DeleteMaterialResponse {
+  bool success = 1;
 }
 
 message GetInventoryRequest {
@@ -120,8 +159,10 @@ message Material {
   string category = 3;
   string unit = 4;
   string description = 5;
-  int64 created_at = 6;
-  int64 updated_at = 7;
+  string specs = 6;
+  int64 min_stock = 7;
+  int64 created_at = 8;
+  int64 updated_at = 9;
 }
 
 message Inventory {

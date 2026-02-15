@@ -7,24 +7,40 @@ export interface DemandItem {
 
 export interface Demand {
     id: number
-    location: string
-    priority: string
+    location?: string
+    priority?: string
     status: string
     description: string
-    items: DemandItem[]
+    items?: DemandItem[]
     created_at?: string
+    // New backend fields
+    material_id?: number
+    quantity?: number
+    urgency?: string
+    target_area?: string
 }
 
 export const dispatchApi = {
     getDemands: (params?: { page: number, page_size: number, status?: string }) =>
-        apiClient.get('/dispatch/demands', { params }),
+        apiClient.get('/dispatch/requests', { params }),
 
-    updateDemandStatus: (id: number, status: string) =>
-        apiClient.put(`/dispatch/demands/${id}/status`, { status }),
+    updateDemandStatus: (id: number, action: 'approve' | 'reject', remark?: string) =>
+        apiClient.post(`/dispatch/requests/${id}/audit`, { action, remark }),
 
-    createOrder: (data: { demand_id: number, warehouse_id: string, vehicle_info: string }) =>
-        apiClient.post('/dispatch/orders', data),
+    createOrder: (data: { request_id: number, allocations: { inventory_id: number, quantity: number }[] }) =>
+        apiClient.post('/dispatch/tasks', data),
+
+    createRequest: (data: {
+        material_id: number,
+        quantity: number,
+        urgency_level: 'L1' | 'L2' | 'L3',
+        target_area: string,
+        description?: string
+    }) => apiClient.post('/dispatch/requests', data),
+
+    getSuggestion: (id: number) =>
+        apiClient.get(`/dispatch/requests/${id}/allocation-suggestion`),
 
     getOrders: (params?: { page: number, page_size: number, status?: string }) =>
-        apiClient.get('/dispatch/orders', { params })
+        apiClient.get('/dispatch/tasks', { params })
 }

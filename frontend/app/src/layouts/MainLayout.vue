@@ -9,6 +9,11 @@ const route = useRoute()
 const userStore = useUserStore()
 const inventoryStore = useInventoryStore()
 const isMobileMenuOpen = ref(false)
+const isCollapsed = ref(false)
+
+const toggleSidebar = () => {
+    isCollapsed.value = !isCollapsed.value
+}
 
 const menuItems = computed(() => {
   const role = userStore.role
@@ -40,11 +45,14 @@ const getPageTitle = (name: string) => {
 </script>
 
 <template>
-  <div class="h-screen w-screen grid md:grid-cols-[250px_1fr] grid-cols-1 grid-rows-[60px_1fr]">
+  <div class="h-screen w-screen grid grid-cols-1 grid-rows-[60px_1fr] transition-all duration-300"
+       :class="isCollapsed ? 'md:grid-cols-[80px_1fr]' : 'md:grid-cols-[250px_1fr]'">
     <!-- Sidebar (Desktop) -->
-    <aside class="bg-gray-900 text-white row-span-2 hidden md:flex flex-col border-r border-gray-800">
-      <div class="h-[60px] flex items-center justify-center border-b border-gray-800">
-        <h1 class="text-xl font-bold text-emerald-500 tracking-wider">应急物资系统</h1>
+    <aside class="bg-gray-900 text-white row-span-2 hidden md:flex flex-col border-r border-gray-800 transition-all duration-300 overflow-hidden">
+      <div class="h-[60px] flex items-center px-4 border-b border-gray-800 overflow-hidden shrink-0"
+           :class="isCollapsed ? 'justify-center' : 'justify-between'">
+        <h1 v-if="!isCollapsed" class="text-xl font-bold text-emerald-500 tracking-wider truncate">应急物资系统</h1>
+        <div v-else class="text-2xl font-bold text-emerald-500">EMS</div>
       </div>
       
       <nav class="flex-1 p-4 space-y-2">
@@ -53,21 +61,25 @@ const getPageTitle = (name: string) => {
           :key="item.path" 
           :to="item.path"
           class="flex items-center p-3 rounded-xl hover:bg-gray-800/50 transition-all duration-300 group"
-          :class="{ 'bg-emerald-900/20 text-emerald-400 border border-emerald-500/20': route.path === item.path, 'text-gray-400': route.path !== item.path }"
+          :class="[
+            { 'bg-emerald-900/20 text-emerald-400 border border-emerald-500/20': route.path === item.path, 'text-gray-400': route.path !== item.path },
+            isCollapsed ? 'justify-center' : ''
+          ]"
         >
-          <el-icon class="mr-3 transition-transform group-hover:scale-110" :size="20">
+          <el-icon class="transition-transform group-hover:scale-110 shrink-0" :class="isCollapsed ? '' : 'mr-3'" :size="20">
             <component :is="item.icon" />
           </el-icon>
-          <span class="font-medium">{{ item.title }}</span>
+          <span v-if="!isCollapsed" class="font-medium truncate transition-all duration-300">{{ item.title }}</span>
         </router-link>
       </nav>
 
       <div class="p-4 border-t border-gray-800 bg-gray-900/50">
-        <div class="flex items-center">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-bold mr-3 shadow-lg">
+        <div class="flex items-center" :class="isCollapsed ? 'justify-center' : ''">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-bold shrink-0 shadow-lg"
+                 :class="isCollapsed ? '' : 'mr-3'">
                 {{ userStore.role?.[0].toUpperCase() }}
             </div>
-            <div class="overflow-hidden">
+            <div v-if="!isCollapsed" class="overflow-hidden">
                 <p class="text-sm font-medium text-white truncate">
                     {{ userStore.role === 'admin' ? '系统管理员' : (userStore.role === 'warehouse' ? '仓库管理员' : '救援指挥员') }}
                 </p>
@@ -107,6 +119,11 @@ const getPageTitle = (name: string) => {
       <div class="flex items-center">
           <button @click="isMobileMenuOpen = true" class="md:hidden mr-4 text-gray-600">
               <el-icon :size="24"><Menu /></el-icon>
+          </button>
+          <button @click="toggleSidebar" class="hidden md:flex mr-4 text-gray-500 hover:text-emerald-600 transition-colors p-1 rounded hover:bg-gray-100">
+              <el-icon :size="20">
+                  <component :is="isCollapsed ? 'Expand' : 'Fold'" />
+              </el-icon>
           </button>
           <h2 class="text-lg font-bold text-gray-800 tracking-tight">{{ getPageTitle(route.name as string) }}</h2>
       </div>

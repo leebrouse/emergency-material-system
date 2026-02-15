@@ -16,6 +16,7 @@ type StockRepository interface {
 	GetMaterialByID(ctx context.Context, id uint) (*model.Material, error)
 	ListMaterials(ctx context.Context, offset, limit int, query string) ([]*model.Material, int64, error)
 	UpdateMaterial(ctx context.Context, m *model.Material) error
+	DeleteMaterial(ctx context.Context, id uint) error
 
 	// Inventory operations
 	GetInventory(ctx context.Context, materialID uint, location string) (*model.Inventory, error)
@@ -26,7 +27,7 @@ type StockRepository interface {
 
 	// StockLog operations
 	CreateStockLog(ctx context.Context, log *model.StockLog) error
-	ListStockLogs(ctx context.Context, materialID uint, offset, limit int) ([]*model.StockLog, int64, error)
+	ListStockLogs(ctx context.Context, materialID uint, logType string, offset, limit int) ([]*model.StockLog, int64, error)
 
 	// Dispatch Support
 	ListInventoryByMaterial(ctx context.Context, materialID uint) ([]*model.Inventory, error)
@@ -75,11 +76,47 @@ func (r *stockRepository) ListMaterials(ctx context.Context, offset, limit int, 
 	}
 	db.Count(&total)
 	err := db.Offset(offset).Limit(limit).Find(&list).Error
-	return list, total, err
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if len(list) > 0 {
+		var ids []uint
+		for _, m := range list {
+			ids = append(ids, m.ID)
+		}
+
+		type Result struct {
+			MaterialID uint
+			Total      int64
+		}
+		var results []Result
+
+		r.db.WithContext(ctx).Table("inventory").
+			Select("material_id, SUM(quantity) as total").
+			Where("material_id IN ?", ids).
+			Group("material_id").
+			Scan(&results)
+
+		qtyMap := make(map[uint]int64)
+		for _, res := range results {
+			qtyMap[res.MaterialID] = res.Total
+		}
+
+		for i, m := range list {
+			list[i].Quantity = qtyMap[m.ID]
+		}
+	}
+
+	return list, total, nil
 }
 
 func (r *stockRepository) UpdateMaterial(ctx context.Context, m *model.Material) error {
 	return r.db.WithContext(ctx).Save(m).Error
+}
+
+func (r *stockRepository) DeleteMaterial(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&model.Material{}, id).Error
 }
 
 // Inventory Impls
@@ -122,12 +159,15 @@ func (r *stockRepository) CreateStockLog(ctx context.Context, log *model.StockLo
 	return r.db.WithContext(ctx).Create(log).Error
 }
 
-func (r *stockRepository) ListStockLogs(ctx context.Context, materialID uint, offset, limit int) ([]*model.StockLog, int64, error) {
+func (r *stockRepository) ListStockLogs(ctx context.Context, materialID uint, logType string, offset, limit int) ([]*model.StockLog, int64, error) {
 	var list []*model.StockLog
 	var total int64
 	db := r.db.WithContext(ctx).Model(&model.StockLog{})
 	if materialID > 0 {
 		db = db.Where("material_id = ?", materialID)
+	}
+	if logType != "" {
+		db = db.Where("type = ?", logType)
 	}
 	db.Count(&total)
 	err := db.Order("id desc").Offset(offset).Limit(limit).Find(&list).Error

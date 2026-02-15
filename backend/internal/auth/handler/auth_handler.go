@@ -83,7 +83,7 @@ func (h *AuthHandler) PostAuthRegister(c *gin.Context) {
 	}
 
 	// need to check null pointer
-	err := h.authService.Register(c.Request.Context(), *req.Username, *req.Password, req.Email, req.Phone, req.Roles)
+	err := h.authService.Register(c.Request.Context(), req.Username, req.Password, req.Email, req.Phone, req.Roles)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

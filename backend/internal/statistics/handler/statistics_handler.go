@@ -42,7 +42,7 @@ func (h *StatisticsHandler) GetStatisticsSummary(c *gin.Context) {
 
 // GetStatisticsTrends 获取统计趋势 - 实现 ServerInterface
 func (h *StatisticsHandler) GetStatisticsTrends(c *gin.Context) {
-	trends, err := h.statisticsService.GetRequestStats(c.Request.Context())
+	trends, err := h.statisticsService.GetConsumptionTrends(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -13,6 +13,8 @@ type Material struct {
 	Category    string         `gorm:"size:50;index" json:"category"`
 	Specs       string         `gorm:"size:100" json:"specs"`          // 规格
 	Unit        string         `gorm:"size:20" json:"unit"`            // 单位
+	Quantity    int64          `gorm:"-" json:"quantity"`              // 聚合库存数量 (非数据库字段)
+	MinStock    int64          `json:"min_stock"`                      // 安全库存
 	BatchNumber string         `gorm:"size:50;index" json:"batch_num"` // 批次号
 	ExpiryDate  *time.Time     `json:"expiry_date"`                    // 有效期
 	Description string         `gorm:"size:255" json:"description"`

@@ -44,6 +44,8 @@ func (s *StockRPCServer) ListMaterials(ctx context.Context, req *stock.ListMater
 			Description: m.Description,
 			Category:    m.Category,
 			Unit:        m.Unit,
+			Specs:       m.Specs,
+			MinStock:    m.MinStock,
 			CreatedAt:   m.CreatedAt.Unix(),
 			UpdatedAt:   m.UpdatedAt.Unix(),
 		})
@@ -69,6 +71,8 @@ func (s *StockRPCServer) GetMaterial(ctx context.Context, req *stock.GetMaterial
 			Description: material.Description,
 			Category:    material.Category,
 			Unit:        material.Unit,
+			Specs:       material.Specs,
+			MinStock:    material.MinStock,
 			CreatedAt:   material.CreatedAt.Unix(),
 			UpdatedAt:   material.UpdatedAt.Unix(),
 		},
@@ -139,6 +143,44 @@ func (s *StockRPCServer) LockStock(ctx context.Context, req *stock.LockStockRequ
 	}
 
 	return &stock.LockStockResponse{Success: true}, nil
+}
+
+// ListStockLogs 获取库存流水
+func (s *StockRPCServer) ListStockLogs(ctx context.Context, req *stock.ListStockLogsRequest) (*stock.ListStockLogsResponse, error) {
+	limit := int(req.Limit)
+	if limit == 0 {
+		limit = 100
+	}
+
+	logs, _, err := s.stockService.ListStockLogs(ctx, uint(req.MaterialId), req.Type, 1, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	var protos []*stock.StockLog
+	for _, l := range logs {
+		protos = append(protos, &stock.StockLog{
+			Id:             int64(l.ID),
+			MaterialId:     int64(l.MaterialID),
+			Type:           string(l.Type),
+			QuantityChange: l.QuantityChange,
+			BalanceAfter:   l.BalanceAfter,
+			OperatorId:     int64(l.OperatorID),
+			Remark:         l.Remark,
+			CreatedAt:      l.CreatedAt.Unix(),
+		})
+	}
+
+	return &stock.ListStockLogsResponse{Logs: protos}, nil
+}
+
+// DeleteMaterial 删除物资
+func (s *StockRPCServer) DeleteMaterial(ctx context.Context, req *stock.DeleteMaterialRequest) (*stock.DeleteMaterialResponse, error) {
+	err := s.stockService.DeleteMaterial(ctx, uint(req.Id))
+	if err != nil {
+		return &stock.DeleteMaterialResponse{Success: false}, err
+	}
+	return &stock.DeleteMaterialResponse{Success: true}, nil
 }
 
 // Unimplemented methods

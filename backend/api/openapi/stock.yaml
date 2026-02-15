@@ -54,6 +54,38 @@ paths:
       responses:
         '200':
           description: 成功返回物资详情
+    put:
+      summary: 更新物资
+      tags:
+        - Stock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Material'
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: 删除物资
+      tags:
+        - Stock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 删除成功
 
   /stock/inventory:
     get:
@@ -119,3 +151,6 @@ components:
           type: string
         description:
           type: string
+        min_stock:
+          type: integer
+          description: 安全库存阈值

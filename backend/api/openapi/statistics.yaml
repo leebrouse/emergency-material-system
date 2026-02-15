@@ -1,0 +1,68 @@
+openapi: 3.0.0
+info:
+  title: Statistics API
+  version: 1.0.0
+  description: 应急物资管理系统统计分析服务 API
+
+paths:
+  /statistics/summary:
+    get:
+      summary: 获取统计汇总
+      tags: [Statistics]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Summary'
+
+  /statistics/reports:
+    get:
+      summary: 获取统计报表
+      tags: [Statistics]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MaterialStat'
+
+  /statistics/trends:
+    get:
+      summary: 获取统计趋势
+      tags: [Statistics]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RequestStat'
+
+components:
+  schemas:
+    Summary:
+      type: object
+      properties:
+        total_materials: { type: integer }
+        total_requests: { type: integer }
+        pending_requests: { type: integer }
+        completed_requests: { type: integer }
+
+    MaterialStat:
+      type: object
+      properties:
+        category: { type: string }
+        count: { type: integer }
+
+    RequestStat:
+      type: object
+      properties:
+        status: { type: string }
+        count: { type: integer }

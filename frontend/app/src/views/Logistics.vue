@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, shallowRef } from 'vue'
 import { useDispatchStore } from '@/stores/dispatch'
-import { logisticsApi } from '@/api/logistics'
 import AMapLoader from '@amap/amap-jsapi-loader'
 
 const dispatchStore = useDispatchStore()
@@ -14,6 +13,8 @@ const markers = ref<any[]>([])
 
 // Your AMap API Key - Configure in .env file
 const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || 'YOUR_AMAP_KEY'
+
+const simulationInterval = ref<any>(null)
 
 const initAMap = async () => {
     try {
@@ -37,19 +38,35 @@ const initAMap = async () => {
             const hqMarker = new AMap.Marker({
                 position: [116.397428, 39.90923],
                 title: '指挥中心',
-                content: `<div style="background: #10B981; width: 16px; height: 16px; border-radius: 4px; transform: rotate(45deg); border: 2px solid white;"></div>`
+                content: `<div style="background: #10B981; width: 16px; height: 16px; border-radius: 4px; transform: rotate(45deg); border: 2px solid white; box-shadow: 0 0 10px #10B981;"></div>`
             })
             map.value.add(hqMarker)
 
             updateMarkers(AMap)
+            
+            // Start movement simulation
+            simulationInterval.value = setInterval(() => {
+                simulateMovement()
+                updateMarkers(AMap)
+            }, 3000)
         }
     } catch (error) {
         console.error('Failed to load AMap', error)
     }
 }
 
+const simulateMovement = () => {
+    activeDrivers.value.forEach(driver => {
+        if (driver.coordinates) {
+            // Move slightly towards a destination (simplified)
+            driver.coordinates[0] += (Math.random() - 0.5) * 0.001
+            driver.coordinates[1] += (Math.random() - 0.5) * 0.001
+        }
+    })
+}
+
 const updateMarkers = (AMap: any) => {
-    // Clear existing markers
+    // Clear existing markers except HQ
     markers.value.forEach(m => map.value?.remove(m))
     markers.value = []
 
@@ -60,8 +77,10 @@ const updateMarkers = (AMap: any) => {
                 title: driver.driver || `运输任务 #${driver.id}`,
                 content: `
                     <div style="position: relative;">
-                        <div style="background: #3B82F6; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; animation: pulse 1.5s infinite;"></div>
-                        <div style="position: absolute; top: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap;">${driver.driver || '运输中'}</div>
+                        <div style="background: #3B82F6; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #3B82F6; animation: pulse 2s infinite;"></div>
+                        <div style="position: absolute; top: 18px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(59, 130, 246, 0.5); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap; pointer-events: none; backdrop-filter: blur(4px);">
+                            ${driver.driver || '运输中'}
+                        </div>
                     </div>
                 `
             })
@@ -77,6 +96,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+    if (simulationInterval.value) clearInterval(simulationInterval.value)
     map.value?.destroy()
 })
 </script>

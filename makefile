@@ -53,11 +53,26 @@ build-bin: build-auth build-stock build-dispatch build-statistics build-logistic
 
 clean-bin: ## 清理编译后的二进制文件
 	@echo "清理编译文件..."
+	rm -f backend/cmd/gateway/gateway
 	rm -f backend/internal/auth/auth
 	rm -f backend/internal/stock/stock
 	rm -f backend/internal/dispatch/dispatch
 	rm -f backend/internal/statistics/statistics
 	rm -f backend/internal/logistics/logistics
+
+# ----------------------
+# 前端相关
+# ----------------------
+.PHONY: frontend-install frontend-run frontend-build
+
+frontend-install: ## 安装前端依赖
+	cd frontend && $(MAKE) install
+
+frontend-run: ## 启动前端开发服务器
+	cd frontend && $(MAKE) run
+
+frontend-build: ## 构建前端生产版本
+	cd frontend && $(MAKE) build
 
 # ----------------------
 # 部署相关 (Docker Compose)
@@ -83,6 +98,16 @@ deploy-logs: ## 查看服务日志
 deploy-all: build-bin ## 编译并启动所有服务
 	@echo "编译并启动所有服务..."
 	docker-compose -f $(DOCKER_COMPOSE_FILE) up --build -d
+
+# ----------------------
+# 综合指令
+# ----------------------
+.PHONY: dev-all
+
+dev-all: ## 启动所有后端服务并运行前端 (本地模式)
+	@echo "启动所有后端服务和前端..."
+	# 这里建议手动在不同终端运行，或者使用工具如 tmux/foreman
+	@echo "建议单独运行 'make frontend-run' 和各后端服务"
 
 # ----------------------
 # 测试相关

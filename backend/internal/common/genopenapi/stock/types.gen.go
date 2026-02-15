@@ -9,9 +9,12 @@ type Material struct {
 	Category    *string `json:"category,omitempty"`
 	Description *string `json:"description,omitempty"`
 	Id          *int    `json:"id,omitempty"`
-	Name        *string `json:"name,omitempty"`
-	Specs       *string `json:"specs,omitempty"`
-	Unit        *string `json:"unit,omitempty"`
+
+	// MinStock 安全库存阈值
+	MinStock *int    `json:"min_stock,omitempty"`
+	Name     *string `json:"name,omitempty"`
+	Specs    *string `json:"specs,omitempty"`
+	Unit     *string `json:"unit,omitempty"`
 }
 
 // GetStockMaterialsParams defines parameters for GetStockMaterials.
@@ -23,3 +26,6 @@ type GetStockMaterialsParams struct {
 
 // PostStockMaterialsJSONRequestBody defines body for PostStockMaterials for application/json ContentType.
 type PostStockMaterialsJSONRequestBody = Material
+
+// PutStockMaterialsIdJSONRequestBody defines body for PutStockMaterialsId for application/json ContentType.
+type PutStockMaterialsIdJSONRequestBody = Material

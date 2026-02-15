@@ -10,6 +10,11 @@ const router = createRouter({
             component: () => import('@/views/Login.vue'),
         },
         {
+            path: '/register',
+            name: 'register',
+            component: () => import('@/views/Register.vue'),
+        },
+        {
             path: '/',
             name: 'home',
             component: () => import('@/layouts/MainLayout.vue'),
@@ -46,7 +51,7 @@ const router = createRouter({
 
 router.beforeEach((to, _, next) => {
     const userStore = useUserStore()
-    const publicPages = ['/login']
+    const publicPages = ['/login', '/register']
     const authRequired = !publicPages.includes(to.path)
 
     // Safety check: if pinia isn't updated yet, try localStorage

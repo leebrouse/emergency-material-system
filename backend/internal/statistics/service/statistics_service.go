@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/emergency-material-system/backend/internal/common/genproto/dispatch"
 	"github.com/emergency-material-system/backend/internal/common/genproto/stock"
@@ -14,6 +15,7 @@ type StatisticsService interface {
 	GetSummary(ctx context.Context) (*model.Summary, error)
 	GetMaterialStats(ctx context.Context) ([]model.MaterialStat, error)
 	GetRequestStats(ctx context.Context) ([]model.RequestStat, error)
+	GetConsumptionTrends(ctx context.Context) ([]model.TrendPoint, error)
 }
 
 // statisticsService 统计服务实现
@@ -103,5 +105,53 @@ func (s *statisticsService) GetRequestStats(ctx context.Context) ([]model.Reques
 			Count:  v,
 		})
 	}
+	return result, nil
+}
+
+// GetConsumptionTrends 获取近七天消耗趋势
+func (s *statisticsService) GetConsumptionTrends(ctx context.Context) ([]model.TrendPoint, error) {
+	// 获取所有出库流水
+	res, err := s.stockClient.ListStockLogs(ctx, &stock.ListStockLogsRequest{Type: "Outbound", Limit: 1000})
+	if err != nil {
+		return nil, err
+	}
+
+	// 按日期分组汇总
+	dailyMap := make(map[string]int64)
+	for _, l := range res.Logs {
+		dateStr := time.Unix(l.CreatedAt, 0).Format("01-02")
+		dailyMap[dateStr] += -l.QuantityChange // 消耗为正值
+	}
+
+	// 生成最近7天的数据点 (即使没有数据也返回0)
+	var result []model.TrendPoint
+	for i := 6; i >= 0; i-- {
+		date := time.Now().AddDate(0, 0, -i)
+		dateStr := date.Format("01-02")
+
+		weekday := ""
+		switch date.Weekday() {
+		case time.Monday:
+			weekday = "周一"
+		case time.Tuesday:
+			weekday = "周二"
+		case time.Wednesday:
+			weekday = "周三"
+		case time.Thursday:
+			weekday = "周四"
+		case time.Friday:
+			weekday = "周五"
+		case time.Saturday:
+			weekday = "周六"
+		case time.Sunday:
+			weekday = "周日"
+		}
+
+		result = append(result, model.TrendPoint{
+			Date:  weekday,
+			Value: dailyMap[dateStr],
+		})
+	}
+
 	return result, nil
 }

@@ -3,7 +3,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useInventoryStore, type Material } from '@/stores/inventory'
 import { stockApi } from '@/api/stock'
 import { ElMessage } from 'element-plus'
-import { Plus, Search, Filter } from '@element-plus/icons-vue'
+import { Plus, Search } from '@element-plus/icons-vue'
 
 const inventoryStore = useInventoryStore()
 const searchQuery = ref('')
@@ -30,14 +30,7 @@ const filteredData = computed(() => {
     })
 })
 
-const getStatusType = (status: string) => {
-    switch(status) {
-        case 'High': return 'success'
-        case 'Low': return 'warning'
-        case 'Critical': return 'danger'
-        default: return 'info'
-    }
-}
+
 
 const getStatusLabel = (status: string) => {
     switch(status) {
@@ -50,7 +43,15 @@ const getStatusLabel = (status: string) => {
 
 const handleAdd = () => {
     isEditing.value = false
-    currentItem.value = { quantity: 0, status: 'High' }
+    currentItem.value = { 
+        name: '', 
+        category: '', 
+        specs: '', 
+        unit: '个', 
+        quantity: 0, 
+        min_stock: 10,
+        description: '' 
+    }
     dialogVisible.value = true
 }
 
@@ -60,43 +61,54 @@ const handleEdit = (item: Material) => {
     dialogVisible.value = true
 }
 
-const handleDelete = (id: number) => {
-    const idx = inventoryStore.materials.findIndex(m => m.id === id)
-    if (idx !== -1) {
-        inventoryStore.materials.splice(idx, 1)
+const handleDelete = async (id: number) => {
+    try {
+        await stockApi.deleteMaterial(id)
+        await inventoryStore.fetchMaterials()
         ElMessage.success('删除成功')
+    } catch (error) {
+        console.error('Delete failed', error)
+        ElMessage.error('删除失败')
     }
 }
 
 const saveItem = async () => {
     try {
         if (isEditing.value && currentItem.value.id) {
-            // Update via API
-            await stockApi.updateInventory({
-                material_id: currentItem.value.id,
-                quantity: currentItem.value.quantity || 0,
-                operation: 'set'
-            })
-            
-            const idx = inventoryStore.materials.findIndex(m => m.id === currentItem.value.id)
-            if (idx !== -1) {
-                const qty = currentItem.value.quantity || 0
-                inventoryStore.materials[idx] = {
-                    ...currentItem.value as Material,
-                    status: qty < 10 ? 'Critical' : (qty < 50 ? 'Low' : 'High')
-                }
+            // 1. Update material metadata (name, specs, min_stock, etc)
+            await stockApi.updateMaterial(currentItem.value.id, currentItem.value)
+
+            // 2. Handle inventory quantity changes
+            const oldItem = inventoryStore.materials.find(m => m.id === currentItem.value.id)
+            const oldQty = oldItem?.quantity || 0
+            const newQty = currentItem.value.quantity || 0
+            const delta = newQty - oldQty
+
+            if (delta !== 0) {
+                await stockApi.updateInventory({
+                    material_id: currentItem.value.id,
+                    quantity: Math.abs(delta),
+                    operation: delta > 0 ? 'inbound' : 'outbound'
+                })
             }
+            
+            await inventoryStore.fetchMaterials()
             ElMessage.success('更新成功')
         } else {
-            // Add new - would need POST /stock/materials endpoint
-            const newId = Math.max(0, ...inventoryStore.materials.map(m => m.id)) + 1
-            const qty = currentItem.value.quantity || 0
-            const newItem: Material = {
-                ...currentItem.value as Material,
-                id: newId,
-                status: qty < 10 ? 'Critical' : (qty < 50 ? 'Low' : 'High')
+            // Add new
+            const res = await stockApi.createMaterial(currentItem.value)
+            const newMaterial = res.data
+            
+            // If initial quantity is set, do an inbound operation
+            if (currentItem.value.quantity && currentItem.value.quantity > 0) {
+                await stockApi.updateInventory({
+                    material_id: newMaterial.id,
+                    quantity: currentItem.value.quantity,
+                    operation: 'inbound'
+                })
             }
-            inventoryStore.materials.push(newItem)
+            
+            await inventoryStore.fetchMaterials()
             ElMessage.success('添加成功')
         }
         dialogVisible.value = false
@@ -120,7 +132,7 @@ const saveItem = async () => {
                     v-model="searchQuery" 
                     placeholder="搜索物资名称或ID..." 
                     class="w-full sm:w-64" 
-                    prefix-icon="Search" 
+                    :prefix-icon="Search" 
                     clearable
                  />
                  
@@ -147,7 +159,7 @@ const saveItem = async () => {
                 </el-table-column>
                 <el-table-column prop="quantity" label="库存数量" sortable width="120">
                      <template #default="scope">
-                        <span :class="{'text-red-600 font-bold': scope.row.quantity < 10}">{{ scope.row.quantity }}</span>
+                        <span :class="{'text-red-600 font-bold': scope.row.quantity < (scope.row.min_stock || 10)}">{{ scope.row.quantity }}</span>
                     </template>
                 </el-table-column>
                 <el-table-column label="状态" width="120">
@@ -182,8 +194,22 @@ const saveItem = async () => {
                          <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
                     </el-select>
                 </el-form-item>
-                 <el-form-item label="数量">
-                    <el-input-number v-model="currentItem.quantity" :min="0" class="w-full" />
+                <el-form-item label="规格">
+                    <el-input v-model="currentItem.specs" placeholder="例如: 50只/盒" />
+                </el-form-item>
+                <div class="grid grid-cols-3 gap-4">
+                    <el-form-item label="单位">
+                        <el-input v-model="currentItem.unit" placeholder="例如: 盒" />
+                    </el-form-item>
+                    <el-form-item label="数量">
+                        <el-input-number v-model="currentItem.quantity" :min="0" class="w-full" :disabled="isEditing" />
+                    </el-form-item>
+                    <el-form-item label="安全库存">
+                        <el-input-number v-model="currentItem.min_stock" :min="0" class="w-full" />
+                    </el-form-item>
+                </div>
+                <el-form-item label="备注说明">
+                    <el-input v-model="currentItem.description" type="textarea" placeholder="物资详细描述..." />
                 </el-form-item>
             </el-form>
             <template #footer>
